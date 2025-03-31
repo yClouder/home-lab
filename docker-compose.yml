@@ -1,0 +1,351 @@
+---
+#########################
+# SERVICE DEFINITIONS   #
+#########################
+services:
+  gluetun:
+# See more: https://github.com/qdm12/gluetun-wiki
+    image: qmcgaw/gluetun
+    container_name: gluetun
+    restart: always
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    environment:
+      - VPN_SERVICE_PROVIDER=private internet access
+      - VPN_PORT_FORWARDING=on
+      - VPN_TYPE=openvpn
+      - TZ=Etc/UTC
+      - UPDATER_PERIOD=24h
+      # OpenVPN Settings:
+      - OPENVPN_USER=
+      - OPENVPN_PASSWORD=
+      # Wireguard Settings:
+      # - WIREGUARD_PRIVATE_KEY=
+      # - WIREGUARD_ADDRESSES=
+    volumes:
+      - gluetun:/gluetun
+  npm:
+# See more: https://nginxproxymanager.com/setup/
+    image: 'jc21/nginx-proxy-manager:latest'
+    container_name: npm
+    restart: always
+    ports:
+      - '80:80'
+      - '443:443'
+      - '81:81' # Can remove after set up is completed. Must add back to resolve any issues.
+    environment:
+      DISABLE_IPV6: 'true'
+    volumes:
+      - npm:/data
+      - letsencrypt:/etc/letsencrypt
+    healthcheck:
+      test: ["CMD", "/bin/check-health"]
+      interval: 10s
+      timeout: 3s
+      start_period: 60s
+  prowlarr:
+# See more: https://docs.linuxserver.io/images/docker-prowlarr
+    image: lscr.io/linuxserver/prowlarr:latest
+    container_name: prowlarr
+    restart: always
+    network_mode: "service:gluetun"
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Etc/UTC
+    volumes:
+      - prowlarr:/config
+    healthcheck:
+      test: curl -f http://localhost:9696/ping || exit 1
+      interval: 10s
+      timeout: 3s
+      start_period: 60s
+    depends_on:
+      gluetun:
+        condition: service_healthy
+        restart: true
+      npm:
+        condition: service_healthy
+        restart: true
+      sonarr:
+        condition: service_healthy
+        restart: true
+      radarr:
+        condition: service_healthy
+        restart: true
+  radarr:
+# See more: https://docs.linuxserver.io/images/docker-radarr
+    image: lscr.io/linuxserver/radarr:latest
+    container_name: radarr
+    restart: always
+    network_mode: "service:gluetun"
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Etc/UTC
+    volumes:
+      - radarr:/config
+      - movies:/movies
+      - downloads:/downloads
+    healthcheck:
+      test: curl -f http://localhost:7878/ping || exit 1
+      interval: 10s
+      timeout: 3s
+      start_period: 60s
+    depends_on:
+      gluetun:
+        condition: service_healthy
+        restart: true
+      npm:
+        condition: service_healthy
+        restart: true
+      bittorrent:
+        condition: service_healthy
+        restart: true
+  sonarr:
+# See more: https://docs.linuxserver.io/images/docker-sonarr
+    image: lscr.io/linuxserver/sonarr:latest
+    container_name: sonarr
+    restart: always
+    network_mode: "service:gluetun"
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Etc/UTC
+    volumes:
+      - sonarr:/config
+      - shows:/tv
+      - downloads:/downloads
+    healthcheck:
+      test: curl -f http://localhost:8989/ping || exit 1
+      interval: 10s
+      timeout: 3s
+      start_period: 60s
+    depends_on:
+      gluetun:
+        condition: service_healthy
+        restart: true
+      npm:
+        condition: service_healthy
+        restart: true
+      bittorrent:
+        condition: service_healthy
+        restart: true
+  bittorrent:
+# See more: https://docs.linuxserver.io/images/docker-qbittorrent
+    image: lscr.io/linuxserver/qbittorrent:latest
+    container_name: bittorrent
+    restart: always
+    network_mode: "service:gluetun"
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Etc/UTC
+      - WEBUI_PORT=8088
+      # Only enable if your VPN provider assigns a static port or allow UPNP. 
+#      - TORRENTING_PORT=6881 
+    volumes:
+      - bittorrent:/config
+      - downloads:/downloads
+    healthcheck:
+      test: curl -f http://localhost:8088 || exit 1
+      interval: 10s
+      timeout: 3s
+      start_period: 60s
+    depends_on:
+      gluetun:
+        condition: service_healthy
+        restart: true
+      npm:
+        condition: service_healthy
+        restart: true
+  unpackerr:
+# See more: https://unpackerr.zip/docs/install/compose
+    image: golift/unpackerr
+    container_name: unpackerr
+    restart: always
+    environment:
+      - TZ=Etc/UTC 
+      - UN_LOG_FILE=/config/unpackerr.log
+      - UN_SONARR_0_URL=http://gluetun:8989
+      # Update with Sonarr API key
+      - UN_SONARR_0_API_KEY=
+      - UN_RADARR_0_URL=http://gluetun:7878
+      # Update with Radarr API key
+      - UN_RADARR_0_API_KEY=
+    volumes:
+      - downloads:/downloads
+      - unpackerr:/config
+    depends_on:
+      radarr:
+        condition: service_healthy
+        restart: true
+      sonarr:
+        condition: service_healthy
+        restart: true
+  overseerr:
+# See more: https://docs.overseerr.dev/getting-started/installation
+    image: sctx/overseerr:latest
+    container_name: overseerr
+    restart: always
+    environment:
+      - LOG_LEVEL=debug
+      - TZ=Etc/UTC
+      - PORT=5055
+    volumes:
+      - overseerr:/app/config
+    healthcheck:
+      test: wget http://localhost:5055/api/v1/status -qO /dev/null || exit 1
+      interval: 10s
+      timeout: 3s
+      start_period: 60s
+    depends_on:
+      npm:
+        condition: service_healthy
+        restart: true
+      radarr:
+        condition: service_healthy
+        restart: true
+      sonarr:
+        condition: service_healthy
+        restart: true
+      plex:
+        condition: service_healthy
+        restart: true
+  plex:
+# See more: https://docs.linuxserver.io/images/docker-plex/
+    image: lscr.io/linuxserver/plex:latest
+    container_name: plex
+    restart: always
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Etc/UTC
+      - VERSION=docker
+      # Get claim from https://account.plex.tv/en/claim
+      - PLEX_CLAIM=
+    volumes:
+      - plex:/config
+      - shows:/tv
+      - movies:/movies
+    healthcheck:
+      test: curl -f http://localhost:32400/identity || exit 1
+      interval: 10s
+      timeout: 3s
+      start_period: 60s
+    depends_on:
+      npm:
+        condition: service_healthy
+        restart: true
+  bittorrent_port_forwarder:
+# See more: https://github.com/mjmeli/qbittorrent-port-forward-gluetun-server
+    image: mjmeli/qbittorrent-port-forward-gluetun-server
+    container_name: bittorrent_port_forwarder
+    restart: always
+    environment:
+    # Bittorrent GUI Login:
+      - QBT_USERNAME=
+      - QBT_PASSWORD=
+    # Bittorrent & Gluetun URL - No change needed
+      - QBT_ADDR=http://gluetun:8088
+      - GTN_ADDR=http://gluetun:8000
+    depends_on:
+      bittorrent:
+        condition: service_healthy
+        restart: true 
+
+#########################
+# NETWORK & VOLUME DEFS #
+#########################
+# Update network driver to overlay if running in swarm.
+# 
+# If the directory layout matches the prerequisites. Just replace {NFSSERVER_IPADDR}
+# and {NFSSERVER_VOLNAME}.
+
+networks:
+  default:
+    name: media_network
+    driver: bridge
+    attachable: true
+
+volumes:
+  downloads:
+    driver: local
+    driver_opts:
+      type: "nfs"
+      o: "addr={NFSSERVER_IPADDR),rw,tcp,nolock,hard,wsize=65536,rsize=65536"
+      device: ":/{NFSSERVER_VOLNAME}/media/downloads"
+  movies:
+    driver: local
+    driver_opts:
+      type: "nfs"
+      o: "addr={NFSSERVER_IPADDR),rw,tcp,nolock,hard,wsize=65536,rsize=65536"
+      device: ":/{NFSSERVER_VOLNAME}/media/movies"
+  shows:
+    driver: local
+    driver_opts:
+      type: "nfs"
+      o: "addr={NFSSERVER_IPADDR),rw,tcp,nolock,hard,wsize=65536,rsize=65536"
+      device: ":/{NFSSERVER_VOLNAME}/media/shows"
+  gluetun:
+    driver: local
+    driver_opts:
+      type: "nfs"
+      o: "addr={NFSSERVER_IPADDR),rw,tcp,nolock,hard,wsize=65536,rsize=65536"
+      device: ":/{NFSSERVER_VOLNAME}/media/docker/gluetun"
+  prowlarr:
+    driver: local
+    driver_opts:
+      type: "nfs"
+      o: "addr={NFSSERVER_IPADDR),rw,tcp,nolock,hard,wsize=65536,rsize=65536"
+      device: ":/{NFSSERVER_VOLNAME}/media/docker/prowlarr"
+  npm:
+    driver: local
+    driver_opts:
+      type: "nfs"
+      o: "addr={NFSSERVER_IPADDR),rw,tcp,nolock,hard,wsize=65536,rsize=65536"
+      device: ":/{NFSSERVER_VOLNAME}/media/docker/npm"
+  letsencrypt:
+    driver: local
+    driver_opts:
+      type: "nfs"
+      o: "addr={NFSSERVER_IPADDR),rw,tcp,nolock,hard,wsize=65536,rsize=65536"
+      device: ":/{NFSSERVER_VOLNAME}/media/docker/letsencrypt"
+  radarr:
+    driver: local
+    driver_opts:
+      type: "nfs"
+      o: "addr={NFSSERVER_IPADDR),rw,tcp,nolock,hard,wsize=65536,rsize=65536"
+      device: ":/{NFSSERVER_VOLNAME}/media/docker/radarr"
+  sonarr:
+    driver: local
+    driver_opts:
+      type: "nfs"
+      o: "addr={NFSSERVER_IPADDR),rw,tcp,nolock,hard,wsize=65536,rsize=65536"
+      device: ":/{NFSSERVER_VOLNAME}/media/docker/sonarr"
+  bittorrent:
+    driver: local
+    driver_opts:
+      type: "nfs"
+      o: "addr={NFSSERVER_IPADDR),rw,tcp,nolock,hard,wsize=65536,rsize=65536"
+      device: ":/{NFSSERVER_VOLNAME}/media/docker/bittorrent"
+  overseerr:
+    driver: local
+    driver_opts:
+      type: "nfs"
+      o: "addr={NFSSERVER_IPADDR),rw,tcp,nolock,hard,wsize=65536,rsize=65536"
+      device: ":/{NFSSERVER_VOLNAME}/media/docker/overseerr"
+  plex:
+    driver: local
+    driver_opts:
+      type: "nfs"
+      o: "addr={NFSSERVER_IPADDR),rw,tcp,nolock,hard,wsize=65536,rsize=65536"
+      device: ":/{NFSSERVER_VOLNAME}/media/docker/plex"
+  unpackerr:
+    driver: local
+    driver_opts:
+      type: "nfs"
+      o: "addr={NFSSERVER_IPADDR),rw,tcp,nolock,hard,wsize=65536,rsize=65536"
+      device: ":/{NFSSERVER_VOLNAME}/media/docker/unpackerr"
