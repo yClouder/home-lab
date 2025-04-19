@@ -1,0 +1,71 @@
+---
+
+secrets:
+  bittorrent-user:
+    file: ./secrets/bittorrent-user.secret
+  bittorrent-password:
+    file: ./secrets/bittorrent-password.secret
+
+services:
+  bittorrent:
+    # See more: https://docs.linuxserver.io/images/docker-qbittorrent
+    image: lscr.io/linuxserver/qbittorrent:latest
+    container_name: bittorrent
+    restart: always
+    network_mode: service:gluetun
+    env_file: ./env/bittorrent.env
+    volumes:
+      - bittorrent:/config
+      - torrent:/media
+    healthcheck:
+      test: curl -f http://localhost:8088 || exit 1
+      interval: 10s
+      timeout: 3s
+      start_period: 60s
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.bittorrent.rule=Host(`bittorrent.${DOMAIN}`)
+      - traefik.http.routers.bittorrent.entrypoints=websecure
+      - traefik.http.services.bittorrent.loadbalancer.server.port=8088
+    depends_on:
+      gluetun:
+        condition: service_healthy
+        restart: true
+      traefik:
+        condition: service_healthy
+        restart: true
+
+  bittorrent_port_forwarder:
+    # See more: https://github.com/mjmeli/qbittorrent-port-forward-gluetun-server
+    image: mjmeli/qbittorrent-port-forward-gluetun-server
+    container_name: bittorrent_port_forwarder
+    restart: always
+    secrets:
+      - bittorrent-user
+      - bittorrent-password
+    env_file: ./env/bittorrent.env
+    depends_on:
+      bittorrent:
+        condition: service_healthy
+        restart: true
+
+networks:
+  default:
+    name: media_network
+    driver: bridge
+    attachable: true
+
+volumes:
+  torrent: # torrent data mount
+    driver: local
+    driver_opts:
+      type: "nfs"
+      o: "addr=${NFS_SERVER},rw,tcp,nolock,hard,wsize=65536,rsize=65536"
+      device: ":${NFS_VOLUME}/data/torrents"
+
+  bittorrent: # qBittorrent app data.
+    driver: local
+    driver_opts:
+      type: "nfs"
+      o: "addr=${NFS_SERVER},rw,tcp,nolock,hard,wsize=65536,rsize=65536"
+      device: ":${NFS_VOLUME}/docker_data/bittorrent"

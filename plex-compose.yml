@@ -1,0 +1,86 @@
+---
+
+secrets:
+  plex-claim:
+    file: ./secrets/plex-claim.secret
+
+services:
+  overseerr:
+    # See more: https://docs.overseerr.dev/getting-started/installation
+    image: sctx/overseerr:latest
+    container_name: overseerr
+    restart: always
+    env_file: ./env/plex.env
+    volumes:
+      - overseerr:/app/config
+    healthcheck:
+      test: wget http://localhost:5055/api/v1/status -qO /dev/null || exit 1
+      interval: 10s
+      timeout: 3s
+      start_period: 60s
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.overseerr.rule=Host(`overseerr.${DOMAIN}`)
+      - traefik.http.routers.overseerr.entrypoints=websecure
+      - traefik.http.services.overseerr.loadbalancer.server.port=5055
+    depends_on:
+      traefik:
+        condition: service_healthy
+        restart: true
+      plex:
+        condition: service_healthy
+        restart: true
+
+  plex:
+    # See more: https://docs.linuxserver.io/images/docker-plex/
+    image: lscr.io/linuxserver/plex:latest
+    container_name: plex
+    restart: always
+    secrets:
+      - plex-claim
+    env_file: ./env/plex.env
+    volumes:
+      - plex:/config
+      - media:/media
+    healthcheck:
+      test: curl -f http://localhost:32400/identity || exit 1
+      interval: 10s
+      timeout: 3s
+      start_period: 60s
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.plex.rule=Host(`plex.${DOMAIN}`)
+      - traefik.http.routers.plex.entrypoints=websecure
+      - traefik.http.services.plex.loadbalancer.server.port=32400
+    depends_on:
+      traefik:
+        condition: service_healthy
+        restart: true
+
+networks:
+  default:
+    name: media_network
+    driver: bridge
+    attachable: true
+
+volumes:
+  media: # Media library
+    driver: local
+    driver_opts:
+      type: "nfs"
+      o: "addr=${NFS_SERVER},rw,tcp,nolock,hard,wsize=65536,rsize=65536"
+      device: ":${NFS_VOLUME}/data/media"
+
+  overseerr: # Overseerr app data.
+    driver: local
+    driver_opts:
+      type: "nfs"
+      o: "addr=${NFS_SERVER},rw,tcp,nolock,hard,wsize=65536,rsize=65536"
+      device: ":${NFS_VOLUME}/docker_data/overseerr"
+
+  plex: # Plex app data.
+    driver: local
+    driver_opts:
+      type: "nfs"
+      o: "addr=${NFS_SERVER},rw,tcp,nolock,hard,wsize=65536,rsize=65536"
+      device: ":${NFS_VOLUME}/docker_data/plex"
