@@ -1,38 +1,132 @@
-# Automated Media Management Setup
+# Proxmox Home Lab Infrastructure
 
-After years of trial, error, and endless Reddit dives, I built the guide I wish I had from the start—a clear, step-by-step walkthrough to fully automate your seedbox in a secure, reliable way. Whether you're new or a seasoned tweaker, this will streamline your media setup from start to finish.
+A Docker-based home lab setup designed for Proxmox virtualization, with distributed services across VMs and LXC containers for optimal resource utilization and management.
 
-Below is a quick overview of the Docker containers used and what each one does.
+## Architecture Overview
 
-- 🔒 Gluetun: A sleek, all-in-one VPN client supporting multiple providers—your digital Swiss Army knife, ensuring your privacy remains rock-solid while torrenting and streaming.
-- 🌐 Traefik: A modern, lightweight reverse proxy and load balancer—your traffic’s front door with smart routing, automatic HTTPS via Let's Encrypt, and seamless Docker integration. Simple to use, powerful to scale.
-- ⬇️ qBittorrent: The reliable, open-source alternative to µTorrent, built on Qt and libtorrent-rasterbar, providing a lightweight yet robust solution for downloading torrents with ease.
-- 🔄 qBittorrent Port Forwarder: Automatically syncs qBittorrent's ports through Gluetun, ensuring maximum connectivity and optimal speeds without manual port configuration headaches.
-- 🎬 Radarr: Automates movie downloads and management—think CouchPotato, but smarter, slicker, and fully integrated into your workflow, making movie management a breeze.
-- 📺 Sonarr: Your personal TV assistant, automatically fetching, sorting, renaming, and even upgrading episodes. It monitors RSS feeds and ensures your TV shows are always ready and waiting.
-- 🔍 Prowlarr: Centralized management for torrent and Usenet indexers—effortlessly integrated across Sonarr, Radarr, Lidarr, and Readarr, eliminating the hassle of configuring indexers individually for each app.
-- 📦 Unpackerr: Watches completed downloads, swiftly unpacking files so they're instantly ready for import by your media apps, removing yet another manual step from your workflow.
-- 📝 Overseerr & Jellyseerr: Easy, user-friendly media request tools for Sonarr, Radarr, Plex, and Jellyfin—making content requests and approvals a breeze.
-- 📡 Plex & Jellyfin: Stream and organize your media anywhere. Plex offers sleek, remote access; Jellyfin is open-source and privacy-focused—both keep your library beautifully managed.
-- 🚢 Watchtower: Automatically keeps your Docker containers up to date with the latest images—set it and forget it for a smoother, more secure stack.
+This setup uses a distributed architecture with services separated by function:
 
-By the end of this guide, you'll have a powerful, fully-automated media system that's secure, efficient, and hassle-free.
+```
+Internet → Nginx Proxy Manager LXC (80/443) → VM1 (Media Management + BitTorrent)
+                                             → VM2 (Other services)
+                                             → Jellyfin LXC (Media Server)
+                                             → Additional LXCs
+```
 
-Check out the full guide here: https://passthebits.com/
+## Key Benefits
+
+- **Centralized Reverse Proxy**: Single Nginx Proxy Manager LXC handles SSL and routing for all services
+- **Resource Optimization**: Services distributed across VMs/LXCs based on resource needs
+- **Scalability**: Easy to add new VMs/LXCs without duplicate infrastructure
+- **Security**: VPN-secured torrenting through Gluetun
+- **Storage**: Centralized NFS storage for all persistent data
+
+## Services Overview
+
+### VM Services (This Repository)
+- 🔒 **Gluetun**: VPN client ensuring secure torrenting with multiple provider support
+- ⬇️ **qBittorrent**: Reliable torrent client with web interface (port 8088)
+- 🔄 **Port Forwarder**: Automatic port forwarding sync for optimal torrent speeds
+- 🎬 **Radarr**: Automated movie management and downloading (port 7878)  
+- 📺 **Sonarr**: TV show monitoring and management (port 8989)
+- 🔍 **Prowlarr**: Centralized indexer management for all *arr apps (port 9696)
+- 📦 **Unpackerr**: Automatic archive extraction for completed downloads
+- 🚢 **Watchtower**: Automatic Docker container updates
+
+### External Services (Separate LXCs)
+- 🌐 **Nginx Proxy Manager**: Reverse proxy with SSL certificate management
+- 📡 **Jellyfin**: Open-source media server for streaming
 
 ## Quick Start
-Carefully read the entire compose file before deploying. Comments are included with details and additional supported variables. Confirm that all uncommented service variables and volumes are correctly configured before deploying. The compose file is available on GitHub.
-```
-git clone https://github.com/pvd-nerd/docker-arr-suite $HOME/media_stack
-cd $HOME/media_stack
-chmod +x media.sh
 
-# Pull all container images before launch.
-sudo docker compose pull
-
-# Start stack services. Initial startup may take a while.
-# If startup fails, consider increasing the `start_period` in the compose file.
-sudo docker compose up -d
+1. **Clone and prepare**:
+```bash
+git clone <your-repo> /home/user/home-lab
+cd /home/user/home-lab
 ```
 
-Some containers won't start until environment variables are set. Allow them to restart continuously initially.
+2. **Configure environment files**:
+   - Set up files in the `env/` directory for each service
+   - Configure Docker secrets in `secrets/` directory
+   - Update `MEDIA_PATH` in `env/nfs.env` if your mount differs from `/mnt/media`
+
+3. **Prepare storage structure**:
+   - Mount your NFS share to `/mnt/media` in the VM
+   - Create required directory structure (see below)
+
+4. **Create directory structure**:
+```bash
+# Create required directories on your NFS mount
+sudo mkdir -p /mnt/media/data/{torrents/{incomplete,complete},movies,tv}
+sudo mkdir -p /mnt/media/docker_data/{gluetun,sonarr,radarr,prowlarr,unpackerr,bittorrent}
+sudo chown -R $USER:$USER /mnt/media
+```
+
+5. **Deploy services**:
+```bash
+# Pull all images
+docker compose pull
+
+# Start all VM services
+docker compose up -d
+```
+
+## Port Mapping
+
+The VM exposes these ports for Nginx Proxy Manager to proxy:
+- **8088**: qBittorrent Web UI
+- **8989**: Sonarr Web UI  
+- **7878**: Radarr Web UI
+- **9696**: Prowlarr Web UI
+
+## File Structure
+
+```
+├── docker-compose.yml          # Main compose file
+├── arr-compose.yml             # Radarr, Sonarr, Prowlarr services
+├── bittorrent-compose.yml      # qBittorrent and VPN services
+├── jellyfin-compose.yml        # Jellyfin (for separate LXC)
+├── env/                        # Environment configuration files
+├── secrets/                    # Docker secrets (API keys, passwords)
+└── CLAUDE.md                   # Detailed project documentation
+```
+
+## Storage Structure
+
+The NFS volume should be mounted to `/mnt/media` in the VM with this directory structure:
+
+```
+/mnt/media/
+├── data/                    # Media and download directories
+│   ├── torrents/            # qBittorrent active downloads
+│   │   ├── incomplete/      # Downloads in progress
+│   │   └── complete/        # Completed downloads
+│   ├── movies/              # Radarr managed movie library
+│   └── tv/                  # Sonarr managed TV show library
+└── docker_data/             # Application configuration and databases
+    ├── gluetun/             # VPN configuration and logs
+    ├── sonarr/              # Sonarr database and settings
+    ├── radarr/              # Radarr database and settings
+    ├── prowlarr/            # Indexer configurations
+    ├── unpackerr/           # Archive extraction settings
+    └── bittorrent/          # qBittorrent settings and state
+```
+
+## Configuration Notes
+
+- **Storage**: NFS volume pre-mounted to `/mnt/media` using bind mounts
+- **VPN**: All torrent traffic routed through Gluetun VPN container
+- **Networking**: No local reverse proxy - handled by external Nginx Proxy Manager
+- **Security**: Secrets managed through Docker secrets for sensitive data
+- **Updates**: Watchtower automatically keeps containers updated
+- **Startup**: Health checks ensure proper service dependency order
+
+## Scaling
+
+To add more services:
+1. Create additional VMs/LXCs as needed
+2. Add service configuration to appropriate compose files
+3. Expose required ports for Nginx Proxy Manager
+4. Configure proxy hosts in Nginx Proxy Manager
+
+This architecture allows for easy horizontal scaling while maintaining centralized management.

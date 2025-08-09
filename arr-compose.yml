@@ -13,7 +13,9 @@ services:
     container_name: sonarr
     restart: always
     network_mode: service:gluetun
-    env_file: ./env/arr.env
+    env_file:
+      - ./env/arr.env
+      - ./env/nfs.env
     volumes:
       - sonarr:/config
       - data:/media
@@ -22,16 +24,10 @@ services:
       interval: 10s
       timeout: 3s
       start_period: 60s
-    labels:
-      - traefik.enable=true
-      - traefik.http.routers.sonarr.rule=Host(`sonarr.${DOMAIN}`)
-      - traefik.http.routers.sonarr.entrypoints=websecure
-      - traefik.http.services.sonarr.loadbalancer.server.port=8989
+    ports:
+      - "8989:8989"
     depends_on:
       gluetun:
-        condition: service_healthy
-        restart: true
-      traefik:
         condition: service_healthy
         restart: true
       bittorrent:
@@ -45,7 +41,9 @@ services:
     container_name: radarr
     restart: always
     network_mode: service:gluetun
-    env_file: ./env/arr.env
+    env_file:
+      - ./env/arr.env
+      - ./env/nfs.env
     volumes:
       - radarr:/config
       - data:/media
@@ -54,16 +52,10 @@ services:
       interval: 10s
       timeout: 3s
       start_period: 60s
-    labels:
-      - traefik.enable=true
-      - traefik.http.routers.radarr.rule=Host(`radarr.${DOMAIN}`)
-      - traefik.http.routers.radarr.entrypoints=websecure
-      - traefik.http.services.radarr.loadbalancer.server.port=7878
+    ports:
+      - "7878:7878"
     depends_on:
       gluetun:
-        condition: service_healthy
-        restart: true
-      traefik:
         condition: service_healthy
         restart: true
       bittorrent:
@@ -76,7 +68,9 @@ services:
     container_name: prowlarr
     restart: always
     network_mode: service:gluetun
-    env_file: ./env/arr.env
+    env_file:
+      - ./env/arr.env
+      - ./env/nfs.env
     volumes: 
       - prowlarr:/config
       - data:/media
@@ -85,16 +79,10 @@ services:
       interval: 10s
       timeout: 3s
       start_period: 60s
-    labels:
-      - traefik.enable=true
-      - traefik.http.routers.prowlarr.rule=Host(`prowlarr.${DOMAIN}`)
-      - traefik.http.routers.prowlarr.entrypoints=websecure
-      - traefik.http.services.prowlarr.loadbalancer.server.port=9696
+    ports:
+      - "9696:9696"
     depends_on:
       gluetun:
-        condition: service_healthy
-        restart: true
-      traefik:
         condition: service_healthy
         restart: true
       bittorrent:
@@ -115,7 +103,9 @@ services:
     secrets:
       - radarr-api
       - sonarr-api
-    env_file: ./env/arr.env
+    env_file:
+      - ./env/arr.env
+      - ./env/nfs.env
     volumes:
       - data:/media
       - unpackerr:/config
@@ -137,34 +127,34 @@ volumes:
   data: # Sonarr, Radarr, Prowlarr, and Unpackerr data mount
     driver: local
     driver_opts:
-      type: "nfs"
-      o: "addr=${NFS_SERVER},rw,tcp,nolock,hard,wsize=65536,rsize=65536"
-      device: ":${NFS_VOLUME}/data"
+      type: "none"
+      o: "bind"
+      device: "${MEDIA_PATH}/data"
 
   sonarr: # Sonarr app data.
     driver: local
     driver_opts:
-      type: "nfs"
-      o: "addr=${NFS_SERVER},rw,tcp,nolock,hard,wsize=65536,rsize=65536"
-      device: ":${NFS_VOLUME}/docker_data/sonarr"
+      type: "none"
+      o: "bind"
+      device: "${MEDIA_PATH}/docker_data/sonarr"
 
   radarr: # Radarr app data.
     driver: local
     driver_opts:
-      type: "nfs"
-      o: "addr=${NFS_SERVER},rw,tcp,nolock,hard,wsize=65536,rsize=65536"
-      device: ":${NFS_VOLUME}/docker_data/radarr"
+      type: "none"
+      o: "bind"
+      device: "${MEDIA_PATH}/docker_data/radarr"
 
   prowlarr: # Prowlarr app data.
     driver: local
     driver_opts:
-      type: "nfs"
-      o: "addr=${NFS_SERVER},rw,tcp,nolock,hard,wsize=65536,rsize=65536"
-      device: ":${NFS_VOLUME}/docker_data/prowlarr"
+      type: "none"
+      o: "bind"
+      device: "${MEDIA_PATH}/docker_data/prowlarr"
 
   unpackerr: # unPackerr app data.
     driver: local
     driver_opts:
-      type: "nfs"
-      o: "addr=${NFS_SERVER},rw,tcp,nolock,hard,wsize=65536,rsize=65536"
-      device: ":${NFS_VOLUME}/docker_data/unpackerr"
+      type: "none"
+      o: "bind"
+      device: "${MEDIA_PATH}/docker_data/unpackerr"

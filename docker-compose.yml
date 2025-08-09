@@ -1,58 +1,12 @@
 ---
 
 secrets:
-  cloudflare-token:
-    file: ./secrets/cloudflare-token.secret
-  cloudflare-email:
-    file: ./secrets/cloudflare-email.secret
   openvpn_user:
     file: ./secrets/openvpn_user.secret
   openvpn_password:
     file: ./secrets/openvpn_password.secret
 
 services:
-  traefik:
-    image: traefik
-    container_name: traefik
-    restart: always
-    command:
-      - --log.level=DEBUG
-      - --providers.docker=true
-      - --providers.docker.exposedbydefault=false
-      - --api.dashboard=false
-      - --serversTransport.insecureSkipVerify=true
-      # Set up LetsEncrypt certificate resolver
-      - --certificatesresolvers.letsencrypt.acme.dnschallenge=true
-      - --certificatesresolvers.letsencrypt.acme.dnschallenge.provider=cloudflare
-      - --certificatesResolvers.letsencrypt.acme.dnschallenge.resolvers=1.1.1.1:53,1.0.0.1:53
-      - --certificatesResolvers.letsencrypt.acme.dnschallenge.delayBeforeCheck=20
-      - --certificatesresolvers.letsencrypt.acme.email=${EMAIL_ADDRESS}
-      - --certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json
-      # Set up an insecure listener that redirects all traffic to TLS
-      - --entrypoints.web.address=:80
-      - --entrypoints.websecure.address=:443
-      - --entrypoints.web.http.redirections.entrypoint.to=websecure
-      - --entrypoints.web.http.redirections.entrypoint.scheme=https
-      # Set up the TLS configuration for our websecure listener
-      - --entrypoints.websecure.http.tls=true
-      - --entrypoints.websecure.http.tls.certResolver=letsencrypt
-      - --entrypoints.websecure.http.tls.domains[0].main=${DOMAIN}
-      - --entrypoints.websecure.http.tls.domains[0].sans=*.${DOMAIN}
-    secrets:
-      - cloudflare-token
-      - cloudflare-email
-    env_file: ./env/traefik.env
-    ports:
-      - 80:80
-      - 443:443
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - letsencrypt:/letsencrypt
-    healthcheck:
-      test: netstat -ptan | grep -E "443.*LISTEN" || exit 1
-      interval: 10s
-      timeout: 3s
-      start_period: 60s
 
   gluetun:
     # See more: https://github.com/qdm12/gluetun-wiki
@@ -66,7 +20,9 @@ services:
     secrets:
       - openvpn_user
       - openvpn_password
-    env_file: ./env/gluetun.env
+    env_file: 
+      - ./env/gluetun.env
+      - ./env/nfs.env
     volumes:
       - gluetun:/gluetun
 
@@ -74,7 +30,9 @@ services:
     # See more: https://github.com/containrrr/watchtower
     image: containrrr/watchtower
     container_name: watchtower
-    env_file: ./env/watchtower.env
+    env_file: 
+      - ./env/watchtower.env
+      - ./env/nfs.env
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
 
@@ -91,16 +49,9 @@ networks:
     attachable: true
 
 volumes:
-  letsencrypt: # Traefik Lets Encrypt certs.
-    driver: local
-    driver_opts:
-      type: "nfs"
-      o: "addr=${NFS_SERVER},rw,tcp,nolock,hard,wsize=65536,rsize=65536"
-      device: ":${NFS_VOLUME}/docker_data/letsencrypt"
-
   gluetun: # Gluetun app data.
     driver: local
     driver_opts:
-      type: "nfs"
-      o: "addr=${NFS_SERVER},rw,tcp,nolock,hard,wsize=65536,rsize=65536"
-      device: ":${NFS_VOLUME}/docker_data/gluetun"
+      type: "none"
+      o: "bind"
+      device: "${MEDIA_PATH}/docker_data/gluetun"
