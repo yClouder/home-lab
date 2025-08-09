@@ -23,6 +23,11 @@ services:
     env_file: 
       - ./env/gluetun.env
       - ./env/nfs.env
+    ports:
+      - "8088:8088"  # qBittorrent
+      - "8989:8989"  # Sonarr
+      - "7878:7878"  # Radarr
+      - "9696:9696"  # Prowlarr
     volumes:
       - gluetun:/gluetun
 

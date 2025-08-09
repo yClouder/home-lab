@@ -24,8 +24,6 @@ services:
       interval: 10s
       timeout: 3s
       start_period: 60s
-    ports:
-      - "8989:8989"
     depends_on:
       gluetun:
         condition: service_healthy
@@ -52,8 +50,6 @@ services:
       interval: 10s
       timeout: 3s
       start_period: 60s
-    ports:
-      - "7878:7878"
     depends_on:
       gluetun:
         condition: service_healthy
@@ -79,8 +75,6 @@ services:
       interval: 10s
       timeout: 3s
       start_period: 60s
-    ports:
-      - "9696:9696"
     depends_on:
       gluetun:
         condition: service_healthy
