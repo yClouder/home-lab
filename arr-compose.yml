@@ -86,27 +86,28 @@ services:
         condition: service_healthy
         restart: true
 
-  unpackerr:
+  # unpackerr:
+    # Temporarily disabled - enable after setting up API keys in Sonarr/Radarr
     # See more: https://unpackerr.zip/docs/install/compose
-    image: golift/unpackerr
-    container_name: unpackerr
-    restart: always
-    secrets:
-      - radarr-api
-      - sonarr-api
-    env_file:
-      - ./env/arr.env
-      - ./env/nfs.env
-    volumes:
-      - data:/media
-      - unpackerr:/config
-    depends_on:
-      sonarr:
-        condition: service_healthy
-        restart: true
-      radarr:
-        condition: service_healthy
-        restart: true
+    # image: golift/unpackerr
+    # container_name: unpackerr
+    # restart: always
+    # secrets:
+      # - radarr-api
+      # - sonarr-api
+    # env_file:
+      # - ./env/arr.env
+      # - ./env/nfs.env
+    # volumes:
+      # - data:/media
+      # - unpackerr:/config
+    # depends_on:
+      # sonarr:
+        # condition: service_healthy
+        # restart: true
+      # radarr:
+        # condition: service_healthy
+        # restart: true
 
 networks:
   default:
