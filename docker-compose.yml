@@ -1,35 +1,6 @@
 ---
 
-secrets:
-  openvpn_user:
-    file: ./secrets/openvpn_user.secret
-  openvpn_password:
-    file: ./secrets/openvpn_password.secret
-
 services:
-
-  gluetun:
-    # See more: https://github.com/qdm12/gluetun-wiki
-    image: qmcgaw/gluetun
-    container_name: gluetun
-    restart: always
-    cap_add:
-      - NET_ADMIN
-    devices:
-      - /dev/net/tun:/dev/net/tun
-    secrets:
-      - openvpn_user
-      - openvpn_password
-    env_file: 
-      - ./env/gluetun.env
-      - ./env/nfs.env
-    # ports:  # Disabled while running without VPN
-      # - "8088:8088"  # qBittorrent
-      # - "8989:8989"  # Sonarr
-      # - "7878:7878"  # Radarr
-      # - "9696:9696"  # Prowlarr
-    volumes:
-      - gluetun:/gluetun
 
   watchtower:
     # See more: https://github.com/containrrr/watchtower
@@ -53,10 +24,4 @@ networks:
     driver: bridge
     attachable: true
 
-volumes:
-  gluetun: # Gluetun app data.
-    driver: local
-    driver_opts:
-      type: "none"
-      o: "bind"
-      device: "${DOCKER_DATA_PATH}/gluetun"
+# No volumes needed for watchtower

@@ -31,21 +31,7 @@ services:
         # condition: service_healthy
         # restart: true
 
-  bittorrent_port_forwarder:
-    # See more: https://github.com/mjmeli/qbittorrent-port-forward-gluetun-server
-    image: mjmeli/qbittorrent-port-forward-gluetun-server
-    container_name: bittorrent_port_forwarder
-    restart: always
-    secrets:
-      - bittorrent-user
-      - bittorrent-password
-    env_file:
-      - ./env/bittorrent.env
-      - ./env/nfs.env
-    depends_on:
-      bittorrent:
-        condition: service_healthy
-        restart: true
+# Port forwarder removed - not needed without Gluetun
 
 networks:
   default:
