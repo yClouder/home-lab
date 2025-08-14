@@ -12,10 +12,12 @@ services:
     image: lscr.io/linuxserver/sonarr:latest
     container_name: sonarr
     restart: always
-    network_mode: service:gluetun
+    # network_mode: service:gluetun  # Temporarily disabled
     env_file:
       - ./env/arr.env
       - ./env/nfs.env
+    ports:
+      - "8989:8989"
     volumes:
       - sonarr:/config
       - data:/media
@@ -38,10 +40,12 @@ services:
     image: lscr.io/linuxserver/radarr:latest
     container_name: radarr
     restart: always
-    network_mode: service:gluetun
+    # network_mode: service:gluetun  # Temporarily disabled
     env_file:
       - ./env/arr.env
       - ./env/nfs.env
+    ports:
+      - "7878:7878"
     volumes:
       - radarr:/config
       - data:/media
@@ -63,10 +67,12 @@ services:
     image: lscr.io/linuxserver/prowlarr:latest
     container_name: prowlarr
     restart: always
-    network_mode: service:gluetun
+    # network_mode: service:gluetun  # Temporarily disabled
     env_file:
       - ./env/arr.env
       - ./env/nfs.env
+    ports:
+      - "9696:9696"
     volumes: 
       - prowlarr:/config
       - data:/media
