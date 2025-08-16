@@ -17,6 +17,7 @@ include:
   - arr-compose.yml
 #  - plex-compose.yml
 #  - jellyfin-compose.yml
+  - flaresolverr-compose.yml
 
 networks:
   default:

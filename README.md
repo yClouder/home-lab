@@ -18,20 +18,18 @@ Internet → Nginx Proxy Manager LXC (80/443) → VM1 (Media Management + BitTor
 - **Centralized Reverse Proxy**: Single Nginx Proxy Manager LXC handles SSL and routing for all services
 - **Resource Optimization**: Services distributed across VMs/LXCs based on resource needs
 - **Scalability**: Easy to add new VMs/LXCs without duplicate infrastructure
-- **Security**: VPN-secured torrenting through Gluetun
 - **Storage**: Centralized NFS storage for all persistent data
+- **Cloudflare Protection**: FlareSolverr automatically bypasses protected indexers
 
 ## Services Overview
 
 ### VM Services (This Repository)
-- 🔒 **Gluetun**: VPN client ensuring secure torrenting with multiple provider support
 - ⬇️ **qBittorrent**: Reliable torrent client with web interface (port 8088)
-- 🔄 **Port Forwarder**: Automatic port forwarding sync for optimal torrent speeds
 - 🎬 **Radarr**: Automated movie management and downloading (port 7878)  
 - 📺 **Sonarr**: TV show monitoring and management (port 8989)
 - 🔍 **Prowlarr**: Centralized indexer management for all *arr apps (port 9696)
-- 📦 **Unpackerr**: Automatic archive extraction for completed downloads
 - 🚢 **Watchtower**: Automatic Docker container updates
+- 🛡️ **FlareSolverr**: Cloudflare challenge solver for protected indexers (port 8191)
 
 ### External Services (Separate LXCs)
 - 🌐 **Nginx Proxy Manager**: Reverse proxy with SSL certificate management
@@ -58,7 +56,7 @@ cd /home/user/home-lab
 ```bash
 # Create required directories on your NFS mount
 sudo mkdir -p /mnt/media/data/{torrents/{incomplete,complete},movies,tv}
-sudo mkdir -p /mnt/media/docker_data/{gluetun,sonarr,radarr,prowlarr,unpackerr,bittorrent}
+sudo mkdir -p /mnt/media/docker_data/{sonarr,radarr,prowlarr,bittorrent,flaresolverr}
 sudo chown -R $USER:$USER /mnt/media
 ```
 
@@ -78,14 +76,15 @@ The VM exposes these ports for Nginx Proxy Manager to proxy:
 - **8989**: Sonarr Web UI  
 - **7878**: Radarr Web UI
 - **9696**: Prowlarr Web UI
+- **8191**: FlareSolverr API (for Prowlarr integration)
 
 ## File Structure
 
 ```
 ├── docker-compose.yml          # Main compose file
 ├── arr-compose.yml             # Radarr, Sonarr, Prowlarr services
-├── bittorrent-compose.yml      # qBittorrent and VPN services
-├── jellyfin-compose.yml        # Jellyfin (for separate LXC)
+├── bittorrent-compose.yml      # qBittorrent services
+├── flaresolverr-compose.yml    # FlareSolverr for Cloudflare protection
 ├── env/                        # Environment configuration files
 ├── secrets/                    # Docker secrets (API keys, passwords)
 └── CLAUDE.md                   # Detailed project documentation
@@ -104,22 +103,21 @@ The NFS volume should be mounted to `/mnt/media` in the VM with this directory s
 │   ├── movies/              # Radarr managed movie library
 │   └── tv/                  # Sonarr managed TV show library
 └── docker_data/             # Application configuration and databases
-    ├── gluetun/             # VPN configuration and logs
     ├── sonarr/              # Sonarr database and settings
     ├── radarr/              # Radarr database and settings
     ├── prowlarr/            # Indexer configurations
-    ├── unpackerr/           # Archive extraction settings
-    └── bittorrent/          # qBittorrent settings and state
+    ├── bittorrent/          # qBittorrent settings and state
+    └── flaresolverr/        # FlareSolverr instances and cache
 ```
 
 ## Configuration Notes
 
 - **Storage**: NFS volume pre-mounted to `/mnt/media` using bind mounts
-- **VPN**: All torrent traffic routed through Gluetun VPN container
 - **Networking**: No local reverse proxy - handled by external Nginx Proxy Manager
 - **Security**: Secrets managed through Docker secrets for sensitive data
 - **Updates**: Watchtower automatically keeps containers updated
 - **Startup**: Health checks ensure proper service dependency order
+- **Cloudflare Protection**: FlareSolverr automatically handles protected indexers
 
 ## Scaling
 

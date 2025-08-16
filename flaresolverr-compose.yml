@@ -1,0 +1,33 @@
+---
+
+services:
+  flaresolverr:
+    # See more: https://github.com/FlareSolverr/FlareSolverr
+    image: ghcr.io/flaresolverr/flaresolverr:latest
+    container_name: flaresolverr
+    restart: always
+    env_file:
+      - ./env/flaresolverr.env
+    ports:
+      - "8191:8191"
+    volumes:
+      - flaresolverr:/app/instances
+    healthcheck:
+      test: curl -f http://localhost:8191/v1 || exit 1
+      interval: 30s
+      timeout: 10s
+      start_period: 60s
+
+networks:
+  default:
+    name: media_network
+    driver: bridge
+    attachable: true
+
+volumes:
+  flaresolverr: # FlareSolverr instances and cache
+    driver: local
+    driver_opts:
+      type: "none"
+      o: "bind"
+      device: "/mnt/media/docker_data/flaresolverr"

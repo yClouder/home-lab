@@ -20,7 +20,7 @@ services:
       - "8989:8989"
     volumes:
       - sonarr:/config
-      - data:/media
+      - torrent:/media
     healthcheck:
       test: curl -f http://localhost:8989/ping || exit 1
       interval: 10s
@@ -45,7 +45,7 @@ services:
       - "7878:7878"
     volumes:
       - radarr:/config
-      - data:/media
+      - torrent:/media
     healthcheck:
       test: curl -f http://localhost:7878/ping || exit 1
       interval: 10s
@@ -69,7 +69,7 @@ services:
       - "9696:9696"
     volumes: 
       - prowlarr:/config
-      - data:/media
+      - torrent:/media
     healthcheck:
       test: curl -f http://localhost:9696/ping || exit 1
       interval: 10s
@@ -87,7 +87,7 @@ services:
         restart: true
 
   # unpackerr:
-    # Temporarily disabled - enable after setting up API keys in Sonarr/Radarr
+    # Temporarily disabled due to API key reading issue
     # See more: https://unpackerr.zip/docs/install/compose
     # image: golift/unpackerr
     # container_name: unpackerr
@@ -99,7 +99,7 @@ services:
       # - ./env/arr.env
       # - ./env/nfs.env
     # volumes:
-      # - data:/media
+      # - torrent:/media
       # - unpackerr:/config
     # depends_on:
       # sonarr:
@@ -108,7 +108,7 @@ services:
       # radarr:
         # condition: service_healthy
         # restart: true
-
+  
 networks:
   default:
     name: media_network
@@ -116,7 +116,7 @@ networks:
     attachable: true
 
 volumes:
-  data: # Sonarr, Radarr, Prowlarr, and Unpackerr data mount
+  torrent: # torrent data mount (shared with qBittorrent)
     driver: local
     driver_opts:
       type: "none"

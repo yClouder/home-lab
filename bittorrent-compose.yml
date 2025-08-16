@@ -45,7 +45,7 @@ volumes:
     driver_opts:
       type: "none"
       o: "bind"
-      device: "${MEDIA_PATH}/data/torrents"
+      device: "${MEDIA_PATH}/data"
 
   bittorrent: # qBittorrent app data.
     driver: local
