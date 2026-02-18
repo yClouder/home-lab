@@ -45,27 +45,35 @@ The VM exposes these ports for the external Nginx Proxy Manager LXC:
 - Check individual compose files for specific service management
 
 ## Storage Configuration
-- **NFS Mount**: Proxmox NFS volume mounted locally to `/mnt/media` in VM
-- **Docker Volumes**: Use bind mounts to `/mnt/media` subdirectories
-- **Directory Structure**:
+Storage is split between local disk (app configs) and NAS (media data).
+
+- **NAS**: `192.168.0.101:/media/media` mounted via NFS to `/mnt/nas/media` on the miniPC
+- **Local disk**: `/opt/docker_data` for app config/database files (performance-sensitive)
+- **Environment variables**:
+  - `NAS_MEDIA_PATH=/mnt/nas/media` — media data on NAS
+  - `DOCKER_DATA_PATH=/opt/docker_data` — local app configs
+
+- **NAS Directory Structure** (`/mnt/nas/media/`):
   ```
-  /mnt/media/
-  ├── data/
-  │   ├── torrents/          # qBittorrent downloads
-  │   ├── movies/            # Radarr managed movies
-  │   └── tv/                # Sonarr managed TV shows
-  └── docker_data/
-      ├── gluetun/           # VPN config
-      ├── sonarr/            # Sonarr database
-      ├── radarr/            # Radarr database  
-      ├── prowlarr/          # Indexer configs
-      ├── unpackerr/         # Extraction configs
-      └── bittorrent/        # qBittorrent settings
+  /mnt/nas/media/
+  ├── torrents/              # qBittorrent downloads
+  ├── movies/                # Radarr managed movies
+  └── tv/                    # Sonarr managed TV shows
+  ```
+
+- **Local Directory Structure** (`/opt/docker_data/`):
+  ```
+  /opt/docker_data/
+  ├── gluetun/               # VPN config
+  ├── sonarr/                # Sonarr database
+  ├── radarr/                # Radarr database
+  ├── prowlarr/              # Indexer configs
+  ├── unpackerr/             # Extraction configs
+  └── bittorrent/            # qBittorrent settings
   ```
 
 ## Notes
 - All torrent traffic goes through VPN (Gluetun)
-- NFS volume pre-mounted to avoid Docker NFS driver complexity
+- NAS NFS share pre-mounted on host to avoid Docker NFS driver complexity
 - No local reverse proxy - handled by external Nginx Proxy Manager LXC
 - Secrets are stored in Docker secrets format
-- Environment variable `MEDIA_PATH=/mnt/media` configures all bind mounts

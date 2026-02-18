@@ -124,37 +124,37 @@ networks:
     attachable: true
 
 volumes:
-  data: # Sonarr, Radarr, Prowlarr, and Unpackerr data mount
+  data: # Sonarr, Radarr, Prowlarr, and Unpackerr data mount (NAS)
     driver: local
     driver_opts:
       type: "none"
       o: "bind"
-      device: "${MEDIA_PATH}/data"
+      device: "${NAS_MEDIA_PATH}"
 
   sonarr: # Sonarr app data.
     driver: local
     driver_opts:
       type: "none"
       o: "bind"
-      device: "${MEDIA_PATH}/docker_data/sonarr"
+      device: "${DOCKER_DATA_PATH}/sonarr"
 
   radarr: # Radarr app data.
     driver: local
     driver_opts:
       type: "none"
       o: "bind"
-      device: "${MEDIA_PATH}/docker_data/radarr"
+      device: "${DOCKER_DATA_PATH}/radarr"
 
   prowlarr: # Prowlarr app data.
     driver: local
     driver_opts:
       type: "none"
       o: "bind"
-      device: "${MEDIA_PATH}/docker_data/prowlarr"
+      device: "${DOCKER_DATA_PATH}/prowlarr"
 
   unpackerr: # unPackerr app data.
     driver: local
     driver_opts:
       type: "none"
       o: "bind"
-      device: "${MEDIA_PATH}/docker_data/unpackerr"
+      device: "${DOCKER_DATA_PATH}/unpackerr"

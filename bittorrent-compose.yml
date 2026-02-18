@@ -54,16 +54,16 @@ networks:
     attachable: true
 
 volumes:
-  torrent: # torrent data mount
+  torrent: # torrent data mount (NAS)
     driver: local
     driver_opts:
       type: "none"
       o: "bind"
-      device: "${MEDIA_PATH}/data/torrents"
+      device: "${NAS_MEDIA_PATH}/torrents"
 
   bittorrent: # qBittorrent app data.
     driver: local
     driver_opts:
       type: "none"
       o: "bind"
-      device: "${MEDIA_PATH}/docker_data/bittorrent"
+      device: "${DOCKER_DATA_PATH}/bittorrent"
