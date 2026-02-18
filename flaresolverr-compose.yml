@@ -30,4 +30,4 @@ volumes:
     driver_opts:
       type: "none"
       o: "bind"
-      device: "/mnt/media/docker_data/flaresolverr"
+      device: "${DOCKER_DATA_PATH}/flaresolverr"

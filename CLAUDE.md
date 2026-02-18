@@ -5,67 +5,68 @@ This is a Docker-based home lab setup with multiple services organized in separa
 
 ## Architecture
 ```
-Internet → Nginx Proxy Manager LXC (80/443) → VM1 (Arr + BitTorrent services)
-                                             → VM2 (other services)
+Internet → Nginx Proxy Manager LXC (80/443) → miniPC (Arr + BitTorrent services)
                                              → Jellyfin LXC
                                              → Other LXCs
 ```
 
 ## Project Structure
-- `docker-compose.yml` - Main compose file (VM services only)
-- `arr-compose.yml` - Arr stack (Radarr, Sonarr, Prowlarr) - Runs on VM
-- `bittorrent-compose.yml` - qBittorrent/VPN services - Runs on VM
-- `jellyfin-compose.yml` - Jellyfin media server - Runs on separate LXC
-- `plex-compose.yml` - Plex media server - Not used
+- `docker-compose.yml` - Main compose file (watchtower + includes)
+- `arr-compose.yml` - Arr stack (Radarr, Sonarr, Prowlarr)
+- `bittorrent-compose.yml` - qBittorrent
+- `flaresolverr-compose.yml` - FlareSolverr (CAPTCHA solver for Prowlarr)
 - `secrets/` - Docker secrets directory
 - `env/` - Environment files
 
-## Services on VM
-- **Gluetun**: VPN container for secure torrenting
+## Services
 - **qBittorrent**: Torrent client (port 8088)
 - **Sonarr**: TV show management (port 8989)
 - **Radarr**: Movie management (port 7878)
 - **Prowlarr**: Indexer manager (port 9696)
-- **Unpackerr**: Archive extraction
+- **FlareSolverr**: CAPTCHA solver (port 8191)
 - **Watchtower**: Auto-updates
 
-## External Services
-- **Nginx Proxy Manager**: Reverse proxy with SSL (runs on separate LXC)
-- **Jellyfin**: Media server (runs on separate LXC)
-
 ## Ports Exposed
-The VM exposes these ports for the external Nginx Proxy Manager LXC:
 - 8088: qBittorrent web UI
 - 8989: Sonarr web UI
-- 7878: Radarr web UI  
+- 7878: Radarr web UI
 - 9696: Prowlarr web UI
+- 8191: FlareSolverr
 
 ## Commands
-- Use `docker-compose up -d` to start all VM services
+- Use `docker compose up -d` to start all services
 - Check individual compose files for specific service management
 
 ## Storage Configuration
-- **NFS Mount**: Proxmox NFS volume mounted locally to `/mnt/media` in VM
-- **Docker Volumes**: Use bind mounts to `/mnt/media` subdirectories
-- **Directory Structure**:
+Storage is split between local disk (app configs) and NAS (media data).
+
+- **NAS**: Unraid at `192.168.0.101`, SMB share `media` mounted via CIFS to `/mnt/nas`
+- **Local disk**: `/opt/docker_data` for app config/database files (performance-sensitive)
+- **Environment variables**:
+  - `NAS_MEDIA_PATH=/mnt/nas/media` — media data on NAS
+  - `DOCKER_DATA_PATH=/opt/docker_data` — local app configs
+
+- **NAS Directory Structure** (`/mnt/nas/media/`):
   ```
-  /mnt/media/
-  ├── data/
-  │   ├── torrents/          # qBittorrent downloads
-  │   ├── movies/            # Radarr managed movies
-  │   └── tv/                # Sonarr managed TV shows
-  └── docker_data/
-      ├── gluetun/           # VPN config
-      ├── sonarr/            # Sonarr database
-      ├── radarr/            # Radarr database  
-      ├── prowlarr/          # Indexer configs
-      ├── unpackerr/         # Extraction configs
-      └── bittorrent/        # qBittorrent settings
+  /mnt/nas/media/
+  ├── torrents/              # qBittorrent downloads
+  ├── movies/                # Radarr managed movies
+  └── tv/                    # Sonarr managed TV shows
+  ```
+
+- **Local Directory Structure** (`/opt/docker_data/`):
+  ```
+  /opt/docker_data/
+  ├── sonarr/                # Sonarr database
+  ├── radarr/                # Radarr database
+  ├── prowlarr/              # Indexer configs
+  ├── bittorrent/            # qBittorrent settings
+  └── flaresolverr/          # FlareSolverr cache
   ```
 
 ## Notes
-- All torrent traffic goes through VPN (Gluetun)
-- NFS volume pre-mounted to avoid Docker NFS driver complexity
+- Gluetun/VPN removed — qBittorrent runs without VPN currently
+- Unpackerr disabled due to API key reading issue
+- NAS CIFS share pre-mounted on host to avoid Docker NFS driver complexity
 - No local reverse proxy - handled by external Nginx Proxy Manager LXC
 - Secrets are stored in Docker secrets format
-- Environment variable `MEDIA_PATH=/mnt/media` configures all bind mounts
