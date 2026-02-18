@@ -12,7 +12,7 @@ Internet → Nginx Proxy Manager LXC (80/443) → miniPC (Arr + BitTorrent servi
 
 ## Project Structure
 - `docker-compose.yml` - Main compose file (watchtower + includes)
-- `arr-compose.yml` - Arr stack (Radarr, Sonarr, Prowlarr)
+- `arr-compose.yml` - Arr stack (Radarr, Sonarr, Prowlarr, Bazarr)
 - `bittorrent-compose.yml` - qBittorrent
 - `flaresolverr-compose.yml` - FlareSolverr (CAPTCHA solver for Prowlarr)
 - `secrets/` - Docker secrets directory
@@ -23,6 +23,7 @@ Internet → Nginx Proxy Manager LXC (80/443) → miniPC (Arr + BitTorrent servi
 - **Sonarr**: TV show management (port 8989)
 - **Radarr**: Movie management (port 7878)
 - **Prowlarr**: Indexer manager (port 9696)
+- **Bazarr**: Subtitle management (port 6767)
 - **FlareSolverr**: CAPTCHA solver (port 8191)
 - **Watchtower**: Auto-updates
 
@@ -31,6 +32,7 @@ Internet → Nginx Proxy Manager LXC (80/443) → miniPC (Arr + BitTorrent servi
 - 8989: Sonarr web UI
 - 7878: Radarr web UI
 - 9696: Prowlarr web UI
+- 6767: Bazarr web UI
 - 8191: FlareSolverr
 
 ## Commands
@@ -60,13 +62,26 @@ Storage is split between local disk (app configs) and NAS (media data).
   ├── sonarr/                # Sonarr database
   ├── radarr/                # Radarr database
   ├── prowlarr/              # Indexer configs
+  ├── bazarr/                # Bazarr database
   ├── bittorrent/            # qBittorrent settings
   └── flaresolverr/          # FlareSolverr cache
   ```
 
+## Deployment
+- The repo lives at `~/repos/home-lab` on the miniPC (arrsuite)
+- SSH alias: `ssh arrsuite` (user: yclouder, host: 192.168.0.204)
+- Workflow: edit locally → commit & push → SSH pull & `docker compose up -d`
+- sudo requires a TTY/password on arrsuite — run privileged commands manually
+
+## NAS Mount Details
+- Unraid NAS at `192.168.0.101`, SMB share named `media`
+- CIFS mount requires `vers=3.0` (default version hangs)
+- fstab entry: `//192.168.0.101/media /mnt/nas cifs defaults,_netdev,vers=3.0,uid=1000,gid=1000,username=arrsuite,password=arrsuite 0 0`
+- NFS is **not** enabled on the NAS — must use CIFS/SMB
+
 ## Notes
 - Gluetun/VPN removed — qBittorrent runs without VPN currently
 - Unpackerr disabled due to API key reading issue
-- NAS CIFS share pre-mounted on host to avoid Docker NFS driver complexity
 - No local reverse proxy - handled by external Nginx Proxy Manager LXC
 - Secrets are stored in Docker secrets format
+- The `dev` branch is the active working branch (miniPC tracks `dev`)
