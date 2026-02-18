@@ -116,13 +116,6 @@ networks:
     attachable: true
 
 volumes:
-  torrent: # torrent data mount (NAS)
-    driver: local
-    driver_opts:
-      type: "none"
-      o: "bind"
-      device: "${NAS_MEDIA_PATH}"
-
   sonarr: # Sonarr app data.
     driver: local
     driver_opts:
