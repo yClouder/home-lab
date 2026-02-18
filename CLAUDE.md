@@ -6,8 +6,11 @@ This is a Docker-based home lab setup with multiple services organized in separa
 ## Architecture
 ```
 Internet → Nginx Proxy Manager LXC (80/443) → miniPC (Arr + BitTorrent services)
-                                             → Jellyfin LXC
+                                             → Jellyfin LXC (101)
                                              → Other LXCs
+
+Unraid NAS (192.168.0.101) ← CIFS → miniPC (/mnt/nas)
+                            ← CIFS → Proxmox (/mnt/nas) → bind mount → Jellyfin LXC (/mnt/nas/media)
 ```
 
 ## Project Structure
@@ -76,8 +79,20 @@ Storage is split between local disk (app configs) and NAS (media data).
 ## NAS Mount Details
 - Unraid NAS at `192.168.0.101`, SMB share named `media`
 - CIFS mount requires `vers=3.0` (default version hangs)
-- fstab entry: `//192.168.0.101/media /mnt/nas cifs defaults,_netdev,vers=3.0,uid=1000,gid=1000,username=arrsuite,password=arrsuite 0 0`
 - NFS is **not** enabled on the NAS — must use CIFS/SMB
+- **miniPC (arrsuite)** fstab: `//192.168.0.101/media /mnt/nas cifs defaults,_netdev,vers=3.0,uid=1000,gid=1000,username=arrsuite,password=arrsuite 0 0`
+- **Proxmox** fstab: `//192.168.0.101/media /mnt/nas cifs defaults,_netdev,vers=3.0,uid=100000,gid=100000,username=arrsuite,password=arrsuite 0 0` (uid 100000 for unprivileged LXC mapping)
+- **Jellyfin LXC (101)**: NAS accessed via Proxmox bind mount (`mp1: /mnt/nas/media,mp=/mnt/nas/media` in LXC config)
+
+## Jellyfin
+- SSH alias: `ssh jellyfin` (root, LXC 101 on Proxmox)
+- Runs as native systemd service (not Docker)
+- Media libraries should point to `/mnt/nas/media/movies` and `/mnt/nas/media/tv`
+- Old Proxmox disk still mounted at `/mnt/media` (legacy, data being migrated to NAS)
+
+## Container Volume Mappings
+- **qBittorrent**: `/media` → `${NAS_MEDIA_PATH}/torrents` (saves to `/media/` inside container)
+- **Sonarr/Radarr/Prowlarr/Bazarr**: `/media` → `${NAS_MEDIA_PATH}` (full NAS media root)
 
 ## Notes
 - Gluetun/VPN removed — qBittorrent runs without VPN currently
