@@ -126,6 +126,15 @@ Configured to prefer quality releases via scoring:
 - **SubsPlease** (+50, Sonarr only) — reliable anime releases
 - **Erai-raws** (+50, Sonarr only) — good anime multi-sub releases
 
+## Transcoding & Subtitles
+- Intel HD 630 GPU shared between Jellyfin (LXC 101) and Plex (LXC 104) via VAAPI
+- After any LXC restart, GPU permissions reset — fix with `chgrp render /dev/dri/renderD128`
+- **Embedded subtitles** force video transcoding (burn-in) which is resource-intensive
+  - Plex: requires Plex Pass for hardware-accelerated burn-in; needs 4GB+ RAM or transcoder gets OOM-killed
+  - Jellyfin: extracts embedded subs as separate streams (avoids burn-in); use VAAPI not QSV (QSV crashes with subtitle burn-in)
+- **External SRT subtitles** (from Bazarr) don't require transcoding — player renders them as overlay
+- inotify file monitoring works over NFS but **not** over CIFS — this was the reason for switching to NFS
+
 ## Notes
 - Gluetun/VPN removed — qBittorrent runs without VPN currently
 - Unpackerr disabled due to API key reading issue
