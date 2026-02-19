@@ -91,8 +91,16 @@ Storage is split between local disk (app configs) and NAS (media data).
 - Old Proxmox disk still mounted at `/mnt/media` (legacy, data being migrated to NAS)
 
 ## Container Volume Mappings
-- **qBittorrent**: `/media` → `${NAS_MEDIA_PATH}/torrents` (saves to `/media/` inside container)
-- **Sonarr/Radarr/Prowlarr/Bazarr**: `/media` → `${NAS_MEDIA_PATH}` (full NAS media root)
+All services share the `media` volume which maps `${NAS_MEDIA_PATH}` → `/media` inside containers.
+- **qBittorrent**: downloads to `/media/torrents/`
+- **Sonarr**: root folder `/media/tv/`
+- **Radarr**: root folder `/media/movies/`
+- **Prowlarr/Bazarr**: access full `/media/` root
+
+## Service Connections
+- **Prowlarr** syncs indexers to Sonarr and Radarr (via API keys)
+- **FlareSolverr** used by Prowlarr for Cloudflare-protected indexers (tag-based, `http://flaresolverr:8191`)
+- **qBittorrent** is the download client for Sonarr/Radarr (host: `bittorrent`, port: `8088`)
 
 ## Notes
 - Gluetun/VPN removed — qBittorrent runs without VPN currently
