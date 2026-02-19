@@ -20,7 +20,7 @@ services:
       - "8088:8088"
     volumes:
       - bittorrent:/config
-      - torrent:/media
+      - media:/media
     healthcheck:
       test: curl -f http://localhost:8088 || exit 1
       interval: 10s
@@ -40,12 +40,12 @@ networks:
     attachable: true
 
 volumes:
-  torrent: # torrent data mount (NAS)
+  media: # NAS media root
     driver: local
     driver_opts:
       type: "none"
       o: "bind"
-      device: "${NAS_MEDIA_PATH}/torrents"
+      device: "${NAS_MEDIA_PATH}"
 
   bittorrent: # qBittorrent app data.
     driver: local

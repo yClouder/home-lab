@@ -20,7 +20,7 @@ services:
       - "8989:8989"
     volumes:
       - sonarr:/config
-      - torrent:/media
+      - media:/media
     healthcheck:
       test: curl -f http://localhost:8989/ping || exit 1
       interval: 10s
@@ -45,7 +45,7 @@ services:
       - "7878:7878"
     volumes:
       - radarr:/config
-      - torrent:/media
+      - media:/media
     healthcheck:
       test: curl -f http://localhost:7878/ping || exit 1
       interval: 10s
@@ -69,7 +69,7 @@ services:
       - "9696:9696"
     volumes: 
       - prowlarr:/config
-      - torrent:/media
+      - media:/media
     healthcheck:
       test: curl -f http://localhost:9696/ping || exit 1
       interval: 10s
@@ -98,7 +98,7 @@ services:
       - "6767:6767"
     volumes:
       - bazarr:/config
-      - torrent:/media
+      - media:/media
     healthcheck:
       test: curl -f http://localhost:6767/ping || exit 1
       interval: 10s
@@ -142,6 +142,13 @@ networks:
     attachable: true
 
 volumes:
+  media: # NAS media root
+    driver: local
+    driver_opts:
+      type: "none"
+      o: "bind"
+      device: "${NAS_MEDIA_PATH}"
+
   sonarr: # Sonarr app data.
     driver: local
     driver_opts:
