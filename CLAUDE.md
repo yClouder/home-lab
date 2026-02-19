@@ -9,8 +9,9 @@ Internet → Nginx Proxy Manager LXC (80/443) → miniPC (Arr + BitTorrent servi
                                              → Jellyfin LXC (101)
                                              → Other LXCs
 
-Unraid NAS (192.168.0.101) ← CIFS → miniPC (/mnt/nas)
-                            ← CIFS → Proxmox (/mnt/nas) → bind mount → Jellyfin LXC (/mnt/nas/media)
+Unraid NAS (192.168.0.101) ← NFS → miniPC (/mnt/nas)
+                            ← NFS → Proxmox (/mnt/nas) → bind mount → Jellyfin LXC (/mnt/nas/media)
+                                                        → bind mount → Plex LXC (/mnt/nas/media)
 ```
 
 ## Project Structure
@@ -45,7 +46,7 @@ Unraid NAS (192.168.0.101) ← CIFS → miniPC (/mnt/nas)
 ## Storage Configuration
 Storage is split between local disk (app configs) and NAS (media data).
 
-- **NAS**: Unraid at `192.168.0.101`, SMB share `media` mounted via CIFS to `/mnt/nas`
+- **NAS**: Unraid at `192.168.0.101`, NFS export `/mnt/user/media` mounted to `/mnt/nas`
 - **Local disk**: `/opt/docker_data` for app config/database files (performance-sensitive)
 - **Environment variables**:
   - `NAS_MEDIA_PATH=/mnt/nas/media` — media data on NAS
@@ -77,21 +78,30 @@ Storage is split between local disk (app configs) and NAS (media data).
 - sudo requires a TTY/password on arrsuite — run privileged commands manually
 
 ## NAS Mount Details
-- Unraid NAS at `192.168.0.101`, SMB share named `media`
-- CIFS mount requires `vers=3.0` (default version hangs)
-- NFS is **not** enabled on the NAS — must use CIFS/SMB
-- **miniPC (arrsuite)** fstab: `//192.168.0.101/media /mnt/nas cifs defaults,_netdev,vers=3.0,uid=1000,gid=1000,username=arrsuite,password=arrsuite 0 0`
-- **Proxmox** fstab: `//192.168.0.101/media /mnt/nas cifs defaults,_netdev,vers=3.0,soft,timeo=10,uid=100000,gid=100000,username=arrsuite,password=arrsuite 0 0` (uid 100000 for unprivileged LXC mapping, soft mount to prevent hangs)
+- Unraid NAS at `192.168.0.101`, NFS export `/mnt/user/media`
+- Switched from CIFS to NFS — fixes inotify for Jellyfin library monitoring and avoids stale mounts
+- **miniPC (arrsuite)** fstab: `192.168.0.101:/mnt/user/media /mnt/nas nfs defaults,_netdev,soft,timeo=100,rsize=131072,wsize=131072 0 0`
+- **Proxmox** fstab: `192.168.0.101:/mnt/user/media /mnt/nas nfs defaults,_netdev,soft,timeo=100,rsize=131072,wsize=131072 0 0`
 - **Jellyfin LXC (101)**: NAS accessed via Proxmox bind mount (`mp1: /mnt/nas/media,mp=/mnt/nas/media` in LXC config)
+- **Plex LXC (104)**: NAS accessed via Proxmox bind mount (`mp1: /mnt/nas/media,mp=/mnt/nas/media` in LXC config)
+
+## Plex
+- SSH alias: `ssh plex` (root, LXC 104 on Proxmox, IP: 192.168.0.205)
+- Runs as native systemd service (not Docker), port 32400
+- Plex Pass activated — hardware transcoding enabled
+- **Hardware transcoding**: VAAPI enabled, Intel HD 630 GPU passed through (`/dev/dri/renderD128`)
+- LXC resources: 2 cores, 4GB RAM (needs 4GB+ for transcoding with subtitles)
+- GPU permissions: `renderD128` must be owned by `render` group (fix with `chgrp render /dev/dri/renderD128` after LXC restart)
+- **Subtitles**: Embedded subs require video transcoding (burn-in) — needs Plex Pass for hardware acceleration
 
 ## Jellyfin
 - SSH alias: `ssh jellyfin` (root, LXC 101 on Proxmox)
 - Runs as native systemd service (not Docker)
 - Media libraries: `/mnt/nas/media/movies` and `/mnt/nas/media/tv`
 - Old Proxmox disk still mounted at `/mnt/media` (legacy)
-- **Hardware transcoding**: VAAPI enabled, Intel HD 630 GPU passed through (`/dev/dri/renderD128`)
+- **Hardware transcoding**: VAAPI enabled (switched from QSV), Intel HD 630 GPU passed through (`/dev/dri/renderD128`)
 - GPU permissions: `renderD128` must be owned by `render` group (fix with `chgrp render /dev/dri/renderD128` after LXC restart)
-- **Subtitles**: Embedded subs unreliable in Jellyfin web/mobile players — rely on Bazarr external `.srt` files instead
+- **Subtitles**: Embedded subs extracted as separate streams (no burn-in). Also uses Bazarr external `.srt` files (pt-BR primary, English fallback)
 
 ## Container Volume Mappings
 All services share the `media` volume which maps `${NAS_MEDIA_PATH}` → `/media` inside containers.
@@ -122,5 +132,4 @@ Configured to prefer quality releases via scoring:
 - No local reverse proxy - handled by external Nginx Proxy Manager LXC
 - Secrets are stored in Docker secrets format
 - The `dev` branch is the active working branch (miniPC tracks `dev`)
-- CIFS mounts can go stale under heavy I/O — use `soft,timeo=10` mount options
-- Jellyfin LXC can't mount CIFS directly — must use Proxmox bind mounts
+- LXCs can't mount NFS/CIFS directly — must use Proxmox bind mounts
