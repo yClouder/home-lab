@@ -12,40 +12,26 @@ services:
     image: lscr.io/linuxserver/qbittorrent:latest
     container_name: bittorrent
     restart: always
-    network_mode: service:gluetun
+    # network_mode: service:gluetun  # Temporarily disabled
     env_file:
       - ./env/bittorrent.env
       - ./env/nfs.env
+    ports:
+      - "8088:8088"
     volumes:
       - bittorrent:/config
-      - torrent:/media
+      - media:/media
     healthcheck:
       test: curl -f http://localhost:8088 || exit 1
       interval: 10s
       timeout: 3s
       start_period: 60s
-    ports:
-      - "8088:8088"
-    depends_on:
-      gluetun:
-        condition: service_healthy
-        restart: true
+    # depends_on:
+      # gluetun:
+        # condition: service_healthy
+        # restart: true
 
-  bittorrent_port_forwarder:
-    # See more: https://github.com/mjmeli/qbittorrent-port-forward-gluetun-server
-    image: mjmeli/qbittorrent-port-forward-gluetun-server
-    container_name: bittorrent_port_forwarder
-    restart: always
-    secrets:
-      - bittorrent-user
-      - bittorrent-password
-    env_file:
-      - ./env/bittorrent.env
-      - ./env/nfs.env
-    depends_on:
-      bittorrent:
-        condition: service_healthy
-        restart: true
+# Port forwarder removed - not needed without Gluetun
 
 networks:
   default:
@@ -54,12 +40,12 @@ networks:
     attachable: true
 
 volumes:
-  torrent: # torrent data mount (NAS)
+  media: # NAS media root
     driver: local
     driver_opts:
       type: "none"
       o: "bind"
-      device: "${NAS_MEDIA_PATH}/torrents"
+      device: "${NAS_MEDIA_PATH}"
 
   bittorrent: # qBittorrent app data.
     driver: local

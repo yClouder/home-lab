@@ -1,132 +1,133 @@
 # Proxmox Home Lab Infrastructure
 
-A Docker-based home lab setup designed for Proxmox virtualization, with distributed services across VMs and LXC containers for optimal resource utilization and management.
+A Docker-based home lab setup designed for Proxmox virtualization, with distributed services across a miniPC and LXC containers. Media is stored on an Unraid NAS.
 
 ## Architecture Overview
 
-This setup uses a distributed architecture with services separated by function:
-
 ```
-Internet → Nginx Proxy Manager LXC (80/443) → VM1 (Media Management + BitTorrent)
-                                             → VM2 (Other services)
+Internet → Nginx Proxy Manager LXC (80/443) → miniPC (Media Management + BitTorrent)
                                              → Jellyfin LXC (Media Server)
-                                             → Additional LXCs
+                                             → Other LXCs
+
+Unraid NAS (192.168.0.101) ← CIFS → miniPC (/mnt/nas)
+                            ← CIFS → Proxmox → bind mount → Jellyfin LXC (/mnt/nas/media)
 ```
 
-## Key Benefits
+## Services
 
-- **Centralized Reverse Proxy**: Single Nginx Proxy Manager LXC handles SSL and routing for all services
-- **Resource Optimization**: Services distributed across VMs/LXCs based on resource needs
-- **Scalability**: Easy to add new VMs/LXCs without duplicate infrastructure
-- **Security**: VPN-secured torrenting through Gluetun
-- **Storage**: Centralized NFS storage for all persistent data
-
-## Services Overview
-
-### VM Services (This Repository)
-- 🔒 **Gluetun**: VPN client ensuring secure torrenting with multiple provider support
-- ⬇️ **qBittorrent**: Reliable torrent client with web interface (port 8088)
-- 🔄 **Port Forwarder**: Automatic port forwarding sync for optimal torrent speeds
-- 🎬 **Radarr**: Automated movie management and downloading (port 7878)  
-- 📺 **Sonarr**: TV show monitoring and management (port 8989)
-- 🔍 **Prowlarr**: Centralized indexer management for all *arr apps (port 9696)
-- 📦 **Unpackerr**: Automatic archive extraction for completed downloads
-- 🚢 **Watchtower**: Automatic Docker container updates
+### miniPC (This Repository)
+- **qBittorrent**: Torrent client with web interface (port 8088)
+- **Radarr**: Automated movie management (port 7878)
+- **Sonarr**: TV show monitoring and management (port 8989)
+- **Prowlarr**: Centralized indexer management (port 9696)
+- **Bazarr**: Subtitle management (port 6767)
+- **FlareSolverr**: Cloudflare challenge solver for protected indexers (port 8191)
+- **Watchtower**: Automatic Docker container updates
 
 ### External Services (Separate LXCs)
-- 🌐 **Nginx Proxy Manager**: Reverse proxy with SSL certificate management
-- 📡 **Jellyfin**: Open-source media server for streaming
+- **Nginx Proxy Manager**: Reverse proxy with SSL certificate management
+- **Jellyfin**: Open-source media server for streaming
 
 ## Quick Start
 
 1. **Clone and prepare**:
 ```bash
-git clone <your-repo> /home/user/home-lab
-cd /home/user/home-lab
+git clone <your-repo> ~/repos/home-lab
+cd ~/repos/home-lab
 ```
 
 2. **Configure environment files**:
    - Set up files in the `env/` directory for each service
    - Configure Docker secrets in `secrets/` directory
-   - Update `MEDIA_PATH` in `env/nfs.env` if your mount differs from `/mnt/media`
 
-3. **Prepare storage structure**:
-   - Mount your NFS share to `/mnt/media` in the VM
-   - Create required directory structure (see below)
+3. **Mount the NAS** (CIFS, `vers=3.0` required):
+```bash
+sudo mkdir -p /mnt/nas
+echo '//192.168.0.101/media /mnt/nas cifs defaults,_netdev,vers=3.0,uid=1000,gid=1000,username=arrsuite,password=arrsuite 0 0' | sudo tee -a /etc/fstab
+sudo mount -a
+```
 
 4. **Create directory structure**:
 ```bash
-# Create required directories on your NFS mount
-sudo mkdir -p /mnt/media/data/{torrents/{incomplete,complete},movies,tv}
-sudo mkdir -p /mnt/media/docker_data/{gluetun,sonarr,radarr,prowlarr,unpackerr,bittorrent}
-sudo chown -R $USER:$USER /mnt/media
+# NAS media directories
+mkdir -p /mnt/nas/media/{torrents/{incomplete,complete},movies,tv}
+
+# Local app config directories
+sudo mkdir -p /opt/docker_data/{sonarr,radarr,prowlarr,bazarr,bittorrent,flaresolverr}
+sudo chown -R $USER:$USER /opt/docker_data
 ```
 
 5. **Deploy services**:
 ```bash
-# Pull all images
 docker compose pull
-
-# Start all VM services
 docker compose up -d
 ```
 
 ## Port Mapping
 
-The VM exposes these ports for Nginx Proxy Manager to proxy:
-- **8088**: qBittorrent Web UI
-- **8989**: Sonarr Web UI  
-- **7878**: Radarr Web UI
-- **9696**: Prowlarr Web UI
+| Port | Service |
+|------|---------|
+| 8088 | qBittorrent Web UI |
+| 8989 | Sonarr Web UI |
+| 7878 | Radarr Web UI |
+| 9696 | Prowlarr Web UI |
+| 6767 | Bazarr Web UI |
+| 8191 | FlareSolverr API |
 
 ## File Structure
 
 ```
-├── docker-compose.yml          # Main compose file
-├── arr-compose.yml             # Radarr, Sonarr, Prowlarr services
-├── bittorrent-compose.yml      # qBittorrent and VPN services
-├── jellyfin-compose.yml        # Jellyfin (for separate LXC)
+├── docker-compose.yml          # Main compose file (watchtower + includes)
+├── arr-compose.yml             # Radarr, Sonarr, Prowlarr, Bazarr
+├── bittorrent-compose.yml      # qBittorrent
+├── flaresolverr-compose.yml    # FlareSolverr
 ├── env/                        # Environment configuration files
 ├── secrets/                    # Docker secrets (API keys, passwords)
 └── CLAUDE.md                   # Detailed project documentation
 ```
 
-## Storage Structure
+## Storage
 
-The NFS volume should be mounted to `/mnt/media` in the VM with this directory structure:
+Storage is split between the NAS (media data) and local disk (app configs).
+
+### NAS (`/mnt/nas/media/` via CIFS)
+```
+/mnt/nas/media/
+├── torrents/              # qBittorrent downloads
+├── movies/                # Radarr managed movie library
+└── tv/                    # Sonarr managed TV show library
+```
+
+### Local (`/opt/docker_data/`)
+```
+/opt/docker_data/
+├── sonarr/                # Sonarr database and settings
+├── radarr/                # Radarr database and settings
+├── prowlarr/              # Indexer configurations
+├── bazarr/                # Bazarr database
+├── bittorrent/            # qBittorrent settings
+└── flaresolverr/          # FlareSolverr cache
+```
+
+All containers mount the NAS media root at `/media/` inside the container:
+- qBittorrent saves to `/media/torrents/`
+- Sonarr root folder: `/media/tv/`
+- Radarr root folder: `/media/movies/`
+
+## Service Connections
 
 ```
-/mnt/media/
-├── data/                    # Media and download directories
-│   ├── torrents/            # qBittorrent active downloads
-│   │   ├── incomplete/      # Downloads in progress
-│   │   └── complete/        # Completed downloads
-│   ├── movies/              # Radarr managed movie library
-│   └── tv/                  # Sonarr managed TV show library
-└── docker_data/             # Application configuration and databases
-    ├── gluetun/             # VPN configuration and logs
-    ├── sonarr/              # Sonarr database and settings
-    ├── radarr/              # Radarr database and settings
-    ├── prowlarr/            # Indexer configurations
-    ├── unpackerr/           # Archive extraction settings
-    └── bittorrent/          # qBittorrent settings and state
+Prowlarr (indexers) → syncs to → Sonarr + Radarr
+FlareSolverr → used by → Prowlarr (via tag, for Cloudflare-protected indexers)
+qBittorrent ← download client for ← Sonarr + Radarr
+Jellyfin ← reads media from ← NAS (/mnt/nas/media/movies, /mnt/nas/media/tv)
 ```
 
 ## Configuration Notes
 
-- **Storage**: NFS volume pre-mounted to `/mnt/media` using bind mounts
-- **VPN**: All torrent traffic routed through Gluetun VPN container
-- **Networking**: No local reverse proxy - handled by external Nginx Proxy Manager
-- **Security**: Secrets managed through Docker secrets for sensitive data
+- **Storage**: NAS CIFS share pre-mounted on host, app configs on local disk for performance
+- **Networking**: No local reverse proxy — handled by external Nginx Proxy Manager LXC
+- **Security**: Secrets managed through Docker secrets
 - **Updates**: Watchtower automatically keeps containers updated
 - **Startup**: Health checks ensure proper service dependency order
-
-## Scaling
-
-To add more services:
-1. Create additional VMs/LXCs as needed
-2. Add service configuration to appropriate compose files
-3. Expose required ports for Nginx Proxy Manager
-4. Configure proxy hosts in Nginx Proxy Manager
-
-This architecture allows for easy horizontal scaling while maintaining centralized management.
+- **VPN**: Gluetun/VPN currently disabled — qBittorrent runs without VPN

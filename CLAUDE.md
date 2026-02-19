@@ -5,49 +5,47 @@ This is a Docker-based home lab setup with multiple services organized in separa
 
 ## Architecture
 ```
-Internet → Nginx Proxy Manager LXC (80/443) → VM1 (Arr + BitTorrent services)
-                                             → VM2 (other services)
-                                             → Jellyfin LXC
+Internet → Nginx Proxy Manager LXC (80/443) → miniPC (Arr + BitTorrent services)
+                                             → Jellyfin LXC (101)
                                              → Other LXCs
+
+Unraid NAS (192.168.0.101) ← CIFS → miniPC (/mnt/nas)
+                            ← CIFS → Proxmox (/mnt/nas) → bind mount → Jellyfin LXC (/mnt/nas/media)
 ```
 
 ## Project Structure
-- `docker-compose.yml` - Main compose file (VM services only)
-- `arr-compose.yml` - Arr stack (Radarr, Sonarr, Prowlarr) - Runs on VM
-- `bittorrent-compose.yml` - qBittorrent/VPN services - Runs on VM
-- `jellyfin-compose.yml` - Jellyfin media server - Runs on separate LXC
-- `plex-compose.yml` - Plex media server - Not used
+- `docker-compose.yml` - Main compose file (watchtower + includes)
+- `arr-compose.yml` - Arr stack (Radarr, Sonarr, Prowlarr, Bazarr)
+- `bittorrent-compose.yml` - qBittorrent
+- `flaresolverr-compose.yml` - FlareSolverr (CAPTCHA solver for Prowlarr)
 - `secrets/` - Docker secrets directory
 - `env/` - Environment files
 
-## Services on VM
-- **Gluetun**: VPN container for secure torrenting
+## Services
 - **qBittorrent**: Torrent client (port 8088)
 - **Sonarr**: TV show management (port 8989)
 - **Radarr**: Movie management (port 7878)
 - **Prowlarr**: Indexer manager (port 9696)
-- **Unpackerr**: Archive extraction
+- **Bazarr**: Subtitle management (port 6767)
+- **FlareSolverr**: CAPTCHA solver (port 8191)
 - **Watchtower**: Auto-updates
 
-## External Services
-- **Nginx Proxy Manager**: Reverse proxy with SSL (runs on separate LXC)
-- **Jellyfin**: Media server (runs on separate LXC)
-
 ## Ports Exposed
-The VM exposes these ports for the external Nginx Proxy Manager LXC:
 - 8088: qBittorrent web UI
 - 8989: Sonarr web UI
-- 7878: Radarr web UI  
+- 7878: Radarr web UI
 - 9696: Prowlarr web UI
+- 6767: Bazarr web UI
+- 8191: FlareSolverr
 
 ## Commands
-- Use `docker-compose up -d` to start all VM services
+- Use `docker compose up -d` to start all services
 - Check individual compose files for specific service management
 
 ## Storage Configuration
 Storage is split between local disk (app configs) and NAS (media data).
 
-- **NAS**: `192.168.0.101:/media/media` mounted via NFS to `/mnt/nas/media` on the miniPC
+- **NAS**: Unraid at `192.168.0.101`, SMB share `media` mounted via CIFS to `/mnt/nas`
 - **Local disk**: `/opt/docker_data` for app config/database files (performance-sensitive)
 - **Environment variables**:
   - `NAS_MEDIA_PATH=/mnt/nas/media` — media data on NAS
@@ -64,16 +62,49 @@ Storage is split between local disk (app configs) and NAS (media data).
 - **Local Directory Structure** (`/opt/docker_data/`):
   ```
   /opt/docker_data/
-  ├── gluetun/               # VPN config
   ├── sonarr/                # Sonarr database
   ├── radarr/                # Radarr database
   ├── prowlarr/              # Indexer configs
-  ├── unpackerr/             # Extraction configs
-  └── bittorrent/            # qBittorrent settings
+  ├── bazarr/                # Bazarr database
+  ├── bittorrent/            # qBittorrent settings
+  └── flaresolverr/          # FlareSolverr cache
   ```
 
+## Deployment
+- The repo lives at `~/repos/home-lab` on the miniPC (arrsuite)
+- SSH alias: `ssh arrsuite` (user: yclouder, host: 192.168.0.204)
+- Workflow: edit locally → commit & push → SSH pull & `docker compose up -d`
+- sudo requires a TTY/password on arrsuite — run privileged commands manually
+
+## NAS Mount Details
+- Unraid NAS at `192.168.0.101`, SMB share named `media`
+- CIFS mount requires `vers=3.0` (default version hangs)
+- NFS is **not** enabled on the NAS — must use CIFS/SMB
+- **miniPC (arrsuite)** fstab: `//192.168.0.101/media /mnt/nas cifs defaults,_netdev,vers=3.0,uid=1000,gid=1000,username=arrsuite,password=arrsuite 0 0`
+- **Proxmox** fstab: `//192.168.0.101/media /mnt/nas cifs defaults,_netdev,vers=3.0,uid=100000,gid=100000,username=arrsuite,password=arrsuite 0 0` (uid 100000 for unprivileged LXC mapping)
+- **Jellyfin LXC (101)**: NAS accessed via Proxmox bind mount (`mp1: /mnt/nas/media,mp=/mnt/nas/media` in LXC config)
+
+## Jellyfin
+- SSH alias: `ssh jellyfin` (root, LXC 101 on Proxmox)
+- Runs as native systemd service (not Docker)
+- Media libraries should point to `/mnt/nas/media/movies` and `/mnt/nas/media/tv`
+- Old Proxmox disk still mounted at `/mnt/media` (legacy, data being migrated to NAS)
+
+## Container Volume Mappings
+All services share the `media` volume which maps `${NAS_MEDIA_PATH}` → `/media` inside containers.
+- **qBittorrent**: downloads to `/media/torrents/`
+- **Sonarr**: root folder `/media/tv/`
+- **Radarr**: root folder `/media/movies/`
+- **Prowlarr/Bazarr**: access full `/media/` root
+
+## Service Connections
+- **Prowlarr** syncs indexers to Sonarr and Radarr (via API keys)
+- **FlareSolverr** used by Prowlarr for Cloudflare-protected indexers (tag-based, `http://flaresolverr:8191`)
+- **qBittorrent** is the download client for Sonarr/Radarr (host: `bittorrent`, port: `8088`)
+
 ## Notes
-- All torrent traffic goes through VPN (Gluetun)
-- NAS NFS share pre-mounted on host to avoid Docker NFS driver complexity
+- Gluetun/VPN removed — qBittorrent runs without VPN currently
+- Unpackerr disabled due to API key reading issue
 - No local reverse proxy - handled by external Nginx Proxy Manager LXC
 - Secrets are stored in Docker secrets format
+- The `dev` branch is the active working branch (miniPC tracks `dev`)

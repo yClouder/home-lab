@@ -1,30 +1,6 @@
 ---
 
-secrets:
-  openvpn_user:
-    file: ./secrets/openvpn_user.secret
-  openvpn_password:
-    file: ./secrets/openvpn_password.secret
-
 services:
-
-  gluetun:
-    # See more: https://github.com/qdm12/gluetun-wiki
-    image: qmcgaw/gluetun
-    container_name: gluetun
-    restart: always
-    cap_add:
-      - NET_ADMIN
-    devices:
-      - /dev/net/tun:/dev/net/tun
-    secrets:
-      - openvpn_user
-      - openvpn_password
-    env_file: 
-      - ./env/gluetun.env
-      - ./env/nfs.env
-    volumes:
-      - gluetun:/gluetun
 
   watchtower:
     # See more: https://github.com/containrrr/watchtower
@@ -41,6 +17,7 @@ include:
   - arr-compose.yml
 #  - plex-compose.yml
 #  - jellyfin-compose.yml
+  - flaresolverr-compose.yml
 
 networks:
   default:
@@ -48,10 +25,4 @@ networks:
     driver: bridge
     attachable: true
 
-volumes:
-  gluetun: # Gluetun app data.
-    driver: local
-    driver_opts:
-      type: "none"
-      o: "bind"
-      device: "${DOCKER_DATA_PATH}/gluetun"
+# No volumes needed for watchtower
