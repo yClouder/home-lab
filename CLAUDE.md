@@ -135,6 +135,17 @@ Configured to prefer quality releases via scoring:
 - **External SRT subtitles** (from Bazarr) don't require transcoding — player renders them as overlay
 - inotify file monitoring works over NFS but **not** over CIFS — this was the reason for switching to NFS
 
+## Backups
+- **Strategy**: Proxmox vzdump backs up all VMs/LXCs to Unraid NAS
+- **NAS share**: `backups` on Unraid, NFS export at `192.168.0.101:/mnt/user/backups`
+- **Proxmox storage**: `nas-backups` (NFS, content type: VZDump backup file)
+- **Schedule**: Weekly, Sunday at 3:00 AM
+- **Guests**: VM 100 (arrsuite), LXC 101 (Jellyfin), 102 (NPM), 103 (RustDesk), 104 (Plex)
+- **Mode**: Snapshot (no downtime)
+- **Compression**: ZSTD
+- **Retention**: Keep last 4 backups (1 month of weekly backups)
+- Media files on the NAS are NOT backed up by this — only VM/LXC configs + app data
+
 ## Notes
 - Gluetun/VPN removed — qBittorrent runs without VPN currently
 - Unpackerr disabled due to API key reading issue
