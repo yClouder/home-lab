@@ -1,0 +1,7 @@
+# Copy this file to terraform.tfvars and fill in your values
+# terraform.tfvars is gitignored — never commit real credentials
+
+proxmox_endpoint  = "https://192.168.0.200:8006"
+proxmox_api_token = "terraform@pve!terraform=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+target_node       = "m910q"
+gateway           = "192.168.0.1"
