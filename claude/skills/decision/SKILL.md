@@ -12,7 +12,7 @@ allowed-tools: Read Write Edit Glob Grep Bash
 
 Captures a decision with rationale before the context is lost. A faster path than `/save decision` when you already know it's a decision.
 
-Vault: `~/Documents/Obsidian/Notes/`. Decisions live in `Projects/Work/<Client>/Decisions/`.
+Vault: `~/Documents/Obsidian Vault/`. Decisions live in `Projects/Work/<Client>/Decisions/`.
 
 ---
 

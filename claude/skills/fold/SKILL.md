@@ -11,7 +11,7 @@ allowed-tools: Read Write Edit Glob Grep Bash
 
 Periodic compression of `log.md` entries into a single fold page that links back to its children. Inspired by DragonScale Memory's mechanism 1 (flat fold over raw log entries).
 
-Vault: `~/Documents/Obsidian/Notes/`. Folds live in `folds/`.
+Vault: `~/Documents/Obsidian Vault/`. Folds live in `folds/`.
 
 ---
 

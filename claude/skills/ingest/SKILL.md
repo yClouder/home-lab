@@ -13,7 +13,7 @@ allowed-tools: Read Write Edit Glob Grep Bash WebFetch
 
 Pull an external source into the vault as a durable summary page.
 
-Vault: `~/Documents/Obsidian/Notes/`. See vault-root `CLAUDE.md` for conventions.
+Vault: `~/Documents/Obsidian Vault/`. See vault-root `CLAUDE.md` for conventions.
 
 ---
 

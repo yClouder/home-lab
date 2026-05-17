@@ -1,7 +1,7 @@
 ---
 name: lint
 description: >
-  Health-check the Obsidian wiki at ~/Documents/Obsidian/Notes/. Finds orphan pages,
+  Health-check the Obsidian wiki at ~/Documents/Obsidian Vault/. Finds orphan pages,
   dead wikilinks, frontmatter gaps, stale tasks, and conflict markers from LiveSync.
   Writes a report to meta/lint-YYYY-MM-DD.md. Triggers on: "/lint", "lint the wiki",
   "wiki health check", "clean up wiki", "find orphans", "wiki audit".
@@ -12,7 +12,7 @@ allowed-tools: Read Write Edit Glob Grep Bash
 
 Run after every ~10-15 saves, or weekly, or when something feels off.
 
-Vault: `~/Documents/Obsidian/Notes/`. Operational layout:
+Vault: `~/Documents/Obsidian Vault/`. Operational layout:
 - Active engagements under `Projects/`:
   - `Projects/Work/<Client>/{Docs,Plans,Sessions,Decisions,Notes,Tasks,Tickets,People}/` — paid client work.
   - `Projects/Homelab/{Docs,Notes,Plans,Tasks}/` — personal homelab project (single-owner; no client-style subfolders).

@@ -12,7 +12,7 @@ allowed-tools: Read Glob Grep Bash
 
 Read the vault state and present a tight brief so the user (and you) can resume work.
 
-Vault: `~/Documents/Obsidian/Notes/`. See vault-root `CLAUDE.md` for conventions.
+Vault: `~/Documents/Obsidian Vault/`. See vault-root `CLAUDE.md` for conventions.
 
 ---
 
