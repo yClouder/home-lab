@@ -1,10 +1,10 @@
 ---
 name: lint
 description: >
-  Health-check the Obsidian wiki at ~/Documents/Obsidian Vault/. Finds orphan pages,
-  dead wikilinks, frontmatter gaps, stale tasks, and conflict markers from LiveSync.
-  Writes a report to meta/lint-YYYY-MM-DD.md. Triggers on: "/lint", "lint the wiki",
-  "wiki health check", "clean up wiki", "find orphans", "wiki audit".
+  Health-check the Obsidian wiki. Finds orphan pages, dead wikilinks, frontmatter
+  gaps, stale tasks, and conflict markers from LiveSync. Writes a report to
+  meta/lint-YYYY-MM-DD.md. Triggers on: "/lint", "lint the wiki", "wiki health
+  check", "clean up wiki", "find orphans", "wiki audit".
 allowed-tools: Read Write Edit Glob Grep Bash
 ---
 
@@ -12,12 +12,14 @@ allowed-tools: Read Write Edit Glob Grep Bash
 
 Run after every ~10-15 saves, or weekly, or when something feels off.
 
-Vault: `~/Documents/Obsidian Vault/`. Operational layout:
-- Active engagements under `Projects/`:
-  - `Projects/Work/<Client>/{Docs,Plans,Sessions,Decisions,Notes,Tasks,Tickets,People}/` — paid client work.
-  - `Projects/Homelab/{Docs,Notes,Plans,Tasks}/` — personal homelab project (single-owner; no client-style subfolders).
-- Cross-project operational folders at vault root: `machines/`, `meta/`, `sources/`, `folds/`.
-- Skill scaffolds at `Templates/claude-<type>.md`.
+Vault path is read from the active machine page (`vault_path:` frontmatter field).
+Fall back to `~/Documents/Obsidian Vault/` on macOS only if the field is absent.
+
+Operational layout:
+- `Projects/Work/<Client>/{Docs,Plans,Sessions,Decisions,Notes,Tasks,Tickets,People}/` — paid client work.
+- `Projects/<Project>/{Docs,Notes,Plans,Tasks,Sessions,Decisions}/` — personal projects (e.g. Homelab).
+- Cross-project folders at vault root: `machines/`, `meta/`, `sources/`, `folds/`.
+- Templates: `Templates/claude-<type>.md`.
 - Vault-level files: `index.md`, `log.md`, `overview.md`, `CLAUDE.md`.
 - Pre-existing top-level folders ignored by lint: `Attachments/`, `Journal/`.
 
@@ -25,7 +27,7 @@ Vault: `~/Documents/Obsidian Vault/`. Operational layout:
 
 ## Workflow
 
-1. **Detect machine.** `hostname -s` → label.
+1. **Detect machine.** `hostname -s` → scan `machines/*.md` for matching `hostname:` → machine label + vault path.
 2. **Run all checks below**, collecting findings.
 3. **Write report** to `meta/lint-YYYY-MM-DD.md` (or `lint-YYYY-MM-DD-<machine>.md` if a same-day report from another machine already exists).
 4. **Summarize to the user**, top 5 issues by severity.
@@ -42,45 +44,66 @@ Vault: `~/Documents/Obsidian Vault/`. Operational layout:
 ## Checks
 
 ### 1. Orphan pages
-A page is an orphan if no other wiki page links to it AND it's not a hub (`_index.md`, `index.md`, `log.md`, `overview.md`, `CLAUDE.md`, machine page, hot cache, fold page).
+A page is an orphan if no other wiki page links to it AND it's not a hub
+(`_index.md`, `index.md`, `log.md`, `overview.md`, `CLAUDE.md`, machine page,
+hot cache, fold page).
 
 ```bash
-grep -rh "\[\[" . --include="*.md" -o | sort -u
+grep -rh "\[\[" <vault_path> --include="*.md" -o | sort -u
 ```
-Compare against `Glob("Projects/**/*.md")` plus the vault-root operational folders (`machines/`, `meta/`, `sources/`, `folds/`). Anything in the file list missing from the link list and not on the exclusion list is an orphan. **Skip** the pre-existing top-level folders that aren't part of the operational vault: `Attachments/`, `Journal/`, and the templates dir `Templates/` (templates are not content pages).
+
+From the grep output:
+1. Extract each `[[Target]]` or `[[Target|Alias]]` — keep only the part before `|`, strip `[[` and `]]`.
+2. Skip any target whose path falls under the exclusion folders: `Attachments/`, `Journal/`, `Templates/`.
+3. Build the linked-to set (all extracted targets).
+4. Build the full file set: glob `<vault_path>/**/*.md`, exclude `Attachments/`, `Journal/`, `Templates/`.
+5. Any file in the full set whose basename is not in the linked-to set and is not a hub page is an orphan.
 
 ### 2. Dead wikilinks
-Wikilinks pointing to non-existent files. For each `[[X]]` (or `[[X|Y]]`) in any wiki page, check that a file named `X.md` exists somewhere in the vault. Note: Obsidian resolves by basename, not path.
+For each `[[X]]` or `[[X|Y]]` across all pages, check that a file named `X.md`
+exists anywhere in the vault (Obsidian resolves by basename). Use the extracted
+link set from check 1 — no need to re-parse all files.
 
 ### 3. Frontmatter gaps
-Every page should have at least: `type`, `created`, `updated`, `tags`. Type-specific required fields:
+Every page should have at least: `type`, `created`, `updated`, `tags`.
+Type-specific required fields:
 - `session`: `client`, `project`, `machine`, `date`
 - `decision`: `client`, `status`, `date`
 - `source`: `source_url` (or `source_path`), `ingested`, `machine`
 - `client`: `status`
 - `project`: `client`, `status`
-- `machine`: `hostname`, `status`
+- `machine`: `hostname`, `vault_path`, `status`
 - `hot`: `machine`, `updated`
 
 Missing required fields → finding.
 
 ### 4. Stale tasks
-Tasks (`- [ ] ...`) older than 60 days that have no recent updates in the parent page. Computed as: file `updated` frontmatter is older than 60 days AND the page contains unchecked tasks.
+Tasks (`- [ ] ...`) older than 60 days. Proxy: file `updated` frontmatter is older
+than 60 days AND the page contains unchecked tasks.
+
+Note: this proxy may miss stale tasks in recently-touched files — flag as
+best-effort.
 
 ### 5. LiveSync conflict markers
-Grep all wiki pages for `<<<<<<<` or `>>>>>>>` or `=======`. Any matches are unresolved sync conflicts — surface immediately with file paths.
+Grep all wiki pages for `<<<<<<<` or `>>>>>>>` or `=======`. Any matches are
+unresolved sync conflicts — surface immediately with file paths.
 
 ### 6. Hot cache freshness
-For each `meta/hot - <machine>.md`, check the `updated:` frontmatter. Flag any older than 14 days (the machine likely hasn't been used in a while; harmless but worth noting).
+For each `meta/hot - <machine>.md`, check the `updated:` frontmatter. Flag any
+older than 14 days.
 
 ### 7. Empty pages
 Files with only frontmatter and no body content. Often abandoned scaffolds.
 
 ### 8. Inconsistent client/project references
-Sessions or decisions whose `client:` frontmatter doesn't match any `Projects/Work/*/_index.md` file. Same for `project:`.
+Sessions or decisions whose `client:` frontmatter doesn't match any known project
+root. Valid project roots are all `_index.md` files found one level deep under
+`Projects/` — covering both `Projects/Work/<Client>/` and `Projects/<Project>/`
+(e.g. Homelab). A client value that doesn't match any of these is flagged.
 
 ### 9. Duplicate filenames across folders
-Obsidian resolves wikilinks by basename, so two pages with the same filename in different folders are an ambiguity hazard.
+Obsidian resolves wikilinks by basename, so two pages with the same filename in
+different folders create ambiguity.
 
 ---
 
@@ -123,10 +146,14 @@ tags: [meta, lint]
 
 ## Fix mode
 
-If the user says "fix it" or "auto-fix the easy ones", apply ONLY these (and report what was changed):
+If the user says "fix it" or "auto-fix the easy ones", apply ONLY these (and
+report what was changed):
 
 - Add missing `updated:` to today's date if `created:` exists.
-- Resolve trivial dead wikilinks where there's a single fuzzy match (e.g. `[[Golden 1 g1-databricks]]` → `[[Golden 1 - g1-databricks]]`) — ASK FIRST per fix.
+- Resolve trivial dead wikilinks where there's a single fuzzy match (e.g.
+  `[[Golden 1 g1-databricks]]` → `[[Golden 1 - g1-databricks]]`) — ASK FIRST
+  per fix.
 - Delete confirmed-empty pages — ASK FIRST.
 
-Never touch hot caches owned by other machines. Never modify `.raw/`. Never touch session/decision page bodies — only frontmatter.
+Never touch hot caches owned by other machines. Never modify `.raw/`. Never touch
+session/decision page bodies — only frontmatter.
