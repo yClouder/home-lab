@@ -4,6 +4,7 @@ output "lxc_ids" {
     jellyfin  = proxmox_virtual_environment_container.jellyfin.vm_id
     npm       = proxmox_virtual_environment_container.npm.vm_id
     rustdesk  = proxmox_virtual_environment_container.rustdesk.vm_id
+    couchdb   = proxmox_virtual_environment_container.couchdb.vm_id
     minecraft = proxmox_virtual_environment_container.minecraft.vm_id
   }
 }

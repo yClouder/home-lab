@@ -17,5 +17,15 @@ provider "proxmox" {
   ssh {
     agent    = true
     username = "root"
+
+    node {
+      name    = "m910q"
+      address = "192.168.0.200"
+    }
+
+    node {
+      name    = "m70q"
+      address = "192.168.0.220"
+    }
   }
 }
