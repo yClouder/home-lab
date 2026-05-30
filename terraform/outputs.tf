@@ -1,11 +1,12 @@
 output "lxc_ids" {
   description = "LXC container VM IDs"
   value = {
-    jellyfin  = proxmox_virtual_environment_container.jellyfin.vm_id
-    npm       = proxmox_virtual_environment_container.npm.vm_id
-    rustdesk  = proxmox_virtual_environment_container.rustdesk.vm_id
-    couchdb   = proxmox_virtual_environment_container.couchdb.vm_id
-    minecraft = proxmox_virtual_environment_container.minecraft.vm_id
+    jellyfin    = proxmox_virtual_environment_container.jellyfin.vm_id
+    npm         = proxmox_virtual_environment_container.npm.vm_id
+    rustdesk    = proxmox_virtual_environment_container.rustdesk.vm_id
+    couchdb     = proxmox_virtual_environment_container.couchdb.vm_id
+    uptime_kuma = proxmox_virtual_environment_container.uptime_kuma.vm_id
+    minecraft   = proxmox_virtual_environment_container.minecraft.vm_id
   }
 }
 

@@ -1,0 +1,18 @@
+# Uptime Kuma monitoring dashboard
+# Runs on CT 206 (Proxmox LXC on m910q), not on the arrsuite stack —
+# isolation so arrsuite outages don't silence the monitor.
+# Reverse-proxied at kuma.yclouder.com via NPM (LXC 202).
+
+services:
+  uptime-kuma:
+    image: louislam/uptime-kuma:1
+    container_name: uptime-kuma
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    volumes:
+      - /opt/docker_data/uptime-kuma:/app/data
+    labels:
+      # Watchtower opt-out — Kuma is bumped manually so a bad release
+      # doesn't take the monitor down unattended.
+      - "com.centurylinklabs.watchtower.enable=false"

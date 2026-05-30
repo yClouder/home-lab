@@ -25,16 +25,18 @@ Two-node cluster:
 | **Storage** | 240GB SSD (boot) + 1TB NVMe | 128GB NVMe (boot only) |
 | **GPU** | Intel HD 630 | Intel UHD 630 |
 | **PVE** | 8.4.5 | 8.4.17 |
-| **Guests** | VM 151, 204; LXC 105, 201, 202, 203 | None |
+| **Guests** | VM 151, 204; LXC 201, 202, 203, 205, 206 | LXC 105 |
 
 ## Project Structure
-- `docker/` - Docker Compose stacks (arr suite, deployed on VM 204)
-  - `docker-compose.yml` - Main compose file (watchtower + includes)
-  - `arr-compose.yml` - Arr stack (Radarr, Sonarr, Prowlarr, Bazarr)
-  - `bittorrent-compose.yml` - qBittorrent
-  - `flaresolverr-compose.yml` - FlareSolverr (CAPTCHA solver for Prowlarr)
-  - `secrets/` - Docker secrets directory
-  - `env/` - Environment files
+- `docker/` - Docker Compose stacks
+  - Arr stack on VM 204:
+    - `docker-compose.yml` - Main compose file (watchtower + includes)
+    - `arr-compose.yml` - Arr stack (Radarr, Sonarr, Prowlarr, Bazarr)
+    - `bittorrent-compose.yml` - qBittorrent
+    - `flaresolverr-compose.yml` - FlareSolverr (CAPTCHA solver for Prowlarr)
+    - `secrets/` - Docker secrets directory
+    - `env/` - Environment files
+  - `uptime-kuma/` - Uptime Kuma monitoring dashboard, deployed on LXC 206
 - `terraform/` - Proxmox infrastructure as code
   - `main.tf` - Provider configuration
   - `variables.tf` - Input variables
@@ -51,6 +53,7 @@ Two-node cluster:
 - **Bazarr**: Subtitle management (port 6767)
 - **FlareSolverr**: CAPTCHA solver (port 8191)
 - **Watchtower**: Auto-updates
+- **Uptime Kuma**: Monitoring dashboard, runs on LXC 206 (port 3001, public at kuma.yclouder.com)
 
 ## Ports Exposed
 - 8088: qBittorrent web UI
@@ -59,6 +62,7 @@ Two-node cluster:
 - 9696: Prowlarr web UI
 - 6767: Bazarr web UI
 - 8191: FlareSolverr
+- 3001: Uptime Kuma (LXC 206)
 
 ## Commands
 - Docker: `cd docker && docker compose up -d` to start all services

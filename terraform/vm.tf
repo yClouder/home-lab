@@ -8,15 +8,15 @@
 
 # --- Windows 10 (VM 151) ---
 resource "proxmox_virtual_environment_vm" "windows10" {
-  node_name = var.target_node
-  vm_id     = 151
-  name      = "Windows10"
+  node_name   = var.target_node
+  vm_id       = 151
+  name        = "Windows10"
   description = "Windows 10 VM running on m910q for general use"
-  tags      = ["general-use"]
+  tags        = ["general-use"]
 
-  bios      = "ovmf"
-  machine   = "pc-q35-9.2+pve1"
-  on_boot   = false
+  bios    = "ovmf"
+  machine = "pc-q35-9.2+pve1"
+  on_boot = false
 
   scsi_hardware = "virtio-scsi-single"
 
@@ -35,8 +35,8 @@ resource "proxmox_virtual_environment_vm" "windows10" {
   }
 
   efi_disk {
-    datastore_id     = "StorageOne"
-    type             = "4m"
+    datastore_id      = "StorageOne"
+    type              = "4m"
     pre_enrolled_keys = true
   }
 
@@ -62,20 +62,27 @@ resource "proxmox_virtual_environment_vm" "windows10" {
     type = "win11"
   }
 
-  boot_order = ["ide0", "net0", "scsi1"]
+  boot_order = ["ide0", "net0"]
 
-  started = false
+  started = true
+
+  # Windows VM lifecycle is user-managed (started/stopped manually) and the
+  # live machine type includes ",viommu=virtio" which the provider rejects
+  # as a valid value. Ignore both so TF never tries to reconcile them.
+  lifecycle {
+    ignore_changes = [machine, started]
+  }
 }
 
 # --- Arr-Suite (VM 204) ---
 # Docker host running the media management stack
 # Compose files are in ../docker/
 resource "proxmox_virtual_environment_vm" "arrsuite" {
-  node_name = var.target_node
-  vm_id     = 204
-  name      = "Arr-Suite"
+  node_name   = var.target_node
+  vm_id       = 204
+  name        = "Arr-Suite"
   description = "Docker host running the media management stack"
-  tags      = ["media"]
+  tags        = ["media"]
 
   on_boot = true
 

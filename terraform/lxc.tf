@@ -2,21 +2,22 @@
 # LXC Containers
 #
 # Import commands:
-#   terraform import proxmox_virtual_environment_container.jellyfin  m910q/201
-#   terraform import proxmox_virtual_environment_container.npm       m910q/202
-#   terraform import proxmox_virtual_environment_container.rustdesk  m910q/203
-#   terraform import proxmox_virtual_environment_container.couchdb   m910q/205
-#   terraform import proxmox_virtual_environment_container.minecraft m70q/105
+#   terraform import proxmox_virtual_environment_container.jellyfin    m910q/201
+#   terraform import proxmox_virtual_environment_container.npm         m910q/202
+#   terraform import proxmox_virtual_environment_container.rustdesk    m910q/203
+#   terraform import proxmox_virtual_environment_container.couchdb     m910q/205
+#   terraform import proxmox_virtual_environment_container.uptime_kuma m910q/206
+#   terraform import proxmox_virtual_environment_container.minecraft   m70q/105
 # =============================================================================
 
 # --- Jellyfin (LXC 201) ---
 # Media server with VAAPI hardware transcoding (Intel HD 630)
 # NAS media accessed via Proxmox bind mount
 resource "proxmox_virtual_environment_container" "jellyfin" {
-  node_name = var.target_node
-  vm_id     = 201
+  node_name   = var.target_node
+  vm_id       = 201
   description = "Jellyfin media server"
-  tags      = ["media"]
+  tags        = ["media"]
 
   operating_system {
     template_file_id = "local:vztmpl/debian-12-standard_12.7-1_amd64.tar.zst"
@@ -102,10 +103,10 @@ resource "proxmox_virtual_environment_container" "jellyfin" {
 # --- Nginx Proxy Manager (LXC 202) ---
 # Reverse proxy handling all external traffic (ports 80/443)
 resource "proxmox_virtual_environment_container" "npm" {
-  node_name = var.target_node
-  vm_id     = 202
+  node_name   = var.target_node
+  vm_id       = 202
   description = "Reverse proxy handling all internal traffic (ports 80/443)"
-  tags      = ["network"]
+  tags        = ["network"]
 
   operating_system {
     template_file_id = "local:vztmpl/debian-12-standard_12.7-1_amd64.tar.zst"
@@ -163,10 +164,10 @@ resource "proxmox_virtual_environment_container" "npm" {
 # --- RustDesk (LXC 203) ---
 # Self-hosted remote desktop server
 resource "proxmox_virtual_environment_container" "rustdesk" {
-  node_name = var.target_node
-  vm_id     = 203
+  node_name   = var.target_node
+  vm_id       = 203
   description = "Self-hosted remote desktop server"
-  tags      = ["remote-desktop"]
+  tags        = ["remote-desktop"]
 
   operating_system {
     template_file_id = "local:vztmpl/debian-12-standard_12.7-1_amd64.tar.zst"
@@ -282,13 +283,78 @@ resource "proxmox_virtual_environment_container" "couchdb" {
   }
 }
 
+# --- Uptime Kuma (LXC 206) ---
+# Monitoring dashboard — runs Uptime Kuma in Docker
+# Dedicated LXC (not on arrsuite) so monitor survives arrsuite failures
+resource "proxmox_virtual_environment_container" "uptime_kuma" {
+  node_name   = var.target_node
+  vm_id       = 206
+  description = "Uptime Kuma monitoring dashboard (Docker)"
+  tags        = ["monitoring", "docker"]
+
+  operating_system {
+    template_file_id = "local:vztmpl/debian-12-standard_12.7-1_amd64.tar.zst"
+    type             = "debian"
+  }
+
+  console {
+    enabled   = true
+    tty_count = 2
+    type      = "tty"
+  }
+
+  cpu {
+    cores = 1
+  }
+
+  memory {
+    dedicated = 1024
+    swap      = 512
+  }
+
+  disk {
+    datastore_id = "local-lvm"
+    size         = 4
+  }
+
+  # API token can only set `nesting` (Proxmox restricts keyctl/fuse to
+  # root@pam). If Docker needs them later, set out-of-band as root via
+  # `pct set 206 -features nesting=1,keyctl=1,fuse=1` and add them to
+  # ignore_changes here.
+  features {
+    nesting = true
+  }
+
+  network_interface {
+    name   = "eth0"
+    bridge = "vmbr0"
+  }
+
+  initialization {
+    hostname = "kuma"
+
+    ip_config {
+      ipv4 {
+        address = "dhcp"
+      }
+    }
+  }
+
+  started      = true
+  unprivileged = true
+
+  lifecycle {
+    ignore_changes = [description, operating_system[0].template_file_id]
+  }
+}
+
 # --- Minecraft (LXC 105) ---
 # Runs on m70q
 resource "proxmox_virtual_environment_container" "minecraft" {
-  node_name = "m70q"
-  vm_id     = 105
+  node_name   = "m70q"
+  vm_id       = 105
   description = "Minecraft server running on m70q"
-  tags      = ["games"]
+  tags        = ["games"]
 
   operating_system {
     template_file_id = "local:vztmpl/debian-12-standard_12.7-1_amd64.tar.zst"
@@ -336,6 +402,13 @@ resource "proxmox_virtual_environment_container" "minecraft" {
         gateway = var.gateway
       }
     }
+  }
+
+  # NAS-backup mount (existing on the live LXC; declared here so TF doesn't
+  # try to remove it and force-replace the container)
+  mount_point {
+    volume = "/mnt/pve/Nas-Backup/minecraft"
+    path   = "/mnt/nas-backups"
   }
 
   started      = true

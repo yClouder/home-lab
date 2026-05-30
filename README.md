@@ -29,6 +29,7 @@ Unraid NAS (192.168.0.101) ← NFS → miniPC (/mnt/nas)
 - **Nginx Proxy Manager**: Reverse proxy with SSL certificate management (LXC 102)
 - **Jellyfin**: Open-source media server with VAAPI hardware transcoding (LXC 101)
 - **Plex**: Media server with Plex Pass hardware transcoding (LXC 104)
+- **Uptime Kuma**: Self-hosted uptime monitoring dashboard (LXC 206, Docker-in-LXC, port 3001, public at kuma.yclouder.com)
 
 ## Quick Start
 
@@ -76,6 +77,7 @@ docker compose up -d
 | 9696 | Prowlarr Web UI |
 | 6767 | Bazarr Web UI |
 | 8191 | FlareSolverr API |
+| 3001 | Uptime Kuma (LXC 206) |
 
 ## File Structure
 
