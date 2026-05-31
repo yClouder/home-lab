@@ -7,11 +7,11 @@ A Docker-based home lab setup designed for Proxmox virtualization, with distribu
 ```
 Internet → Nginx Proxy Manager LXC (80/443) → miniPC (Media Management + BitTorrent)
                                              → Jellyfin LXC (Media Server)
+                                             → Uptime Kuma LXC (Monitoring)
                                              → Other LXCs
 
 Unraid NAS (192.168.0.101) ← NFS → miniPC (/mnt/nas)
                             ← NFS → Proxmox → bind mount → Jellyfin LXC (/mnt/nas/media)
-                                             → bind mount → Plex LXC (/mnt/nas/media)
 ```
 
 ## Services
@@ -26,10 +26,12 @@ Unraid NAS (192.168.0.101) ← NFS → miniPC (/mnt/nas)
 - **Watchtower**: Automatic Docker container updates
 
 ### External Services (Separate LXCs)
-- **Nginx Proxy Manager**: Reverse proxy with SSL certificate management (LXC 102)
-- **Jellyfin**: Open-source media server with VAAPI hardware transcoding (LXC 101)
-- **Plex**: Media server with Plex Pass hardware transcoding (LXC 104)
+- **Nginx Proxy Manager**: Reverse proxy with SSL certificate management (LXC 202)
+- **Jellyfin**: Open-source media server with VAAPI hardware transcoding (LXC 201)
+- **RustDesk**: Self-hosted remote desktop server (LXC 203)
+- **CouchDB**: Obsidian LiveSync backend (LXC 205, port 5984)
 - **Uptime Kuma**: Self-hosted uptime monitoring dashboard (LXC 206, Docker-in-LXC, port 3001, public at kuma.yclouder.com)
+- **Minecraft + Crafty Controller**: Game server (LXC 105 on m70q, game port 25578, Crafty web UI 8443)
 
 ## Quick Start
 
@@ -125,8 +127,8 @@ All containers mount the NAS media root at `/media/` inside the container:
 Prowlarr (indexers) → syncs to → Sonarr + Radarr
 FlareSolverr → used by → Prowlarr (via tag, for Cloudflare-protected indexers)
 qBittorrent ← download client for ← Sonarr + Radarr
+Bazarr → fetches subtitles for → Sonarr + Radarr (pt-BR primary, English fallback)
 Jellyfin ← reads media from ← NAS (/mnt/nas/media/movies, /mnt/nas/media/tv)
-Plex    ← reads media from ← NAS (/mnt/nas/media/movies, /mnt/nas/media/tv)
 ```
 
 ## Configuration Notes
@@ -137,4 +139,4 @@ Plex    ← reads media from ← NAS (/mnt/nas/media/movies, /mnt/nas/media/tv)
 - **Updates**: Watchtower automatically keeps containers updated
 - **Startup**: Health checks ensure proper service dependency order
 - **VPN**: Gluetun/VPN currently disabled — qBittorrent runs without VPN
-- **Hardware transcoding**: Intel HD 630 GPU (VAAPI) shared between Jellyfin and Plex LXCs via `/dev/dri/renderD128`
+- **Hardware transcoding**: Intel HD 630 GPU (VAAPI) passed through to Jellyfin LXC via `/dev/dri/renderD128`
